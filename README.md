@@ -16,20 +16,33 @@
 
 ## P0.5 快速运行
 
-最简单：双击根目录的 `start-persona-lab.cmd`。
+### 浏览器版（推荐，当前可用）
 
-或者用 PowerShell：
+**双击根目录的 [`start-persona-lab-web.cmd`](start-persona-lab-web.cmd)。** 它会启动本地 Node 服务，并打开：
+
+```text
+http://127.0.0.1:4173
+```
+
+- 不需要 Electron；Node 做后台，Edge 做界面。
+- API Key 只保存在本次 Node 进程内存，**不落盘**；重启服务要重填。
+- 关闭那个黑色命令行窗口 = 关闭服务。
+
+### Electron 版（当前 Windows 11 26200 会崩）
 
 ```powershell
 cd "C:\Users\6fish\Desktop\AI伙伴"
 npm.cmd run dev
 ```
 
+> 当前机器上 Electron 连 `--version` 都会 `STATUS_BREAKPOINT`（`-2147483645`）。DSH 能跑是因为它是**签名、打包好的 Electron 成品**，自带它自己的运行时；我们用的是本地**未签名 dev 版 Electron**，不是同一个东西。先用浏览器版，最终 app 再选 Tauri 或正式签名的桌面壳。
+
+### 首次设置
+
 - 首次打开：点“设置”，填 AI 名字、称呼、关系，保存。
-- 接真实模型：设置 → DeepSeek API Key → 粘贴 → 取消“演示模式” → 保存。Key 会加密存到 `config/lab-secrets.json`，不进 Git。
+- 接真实模型：设置 → DeepSeek API Key → 粘贴 → 取消“演示模式” → 保存。
 - 调人设：点“调试人设”，或按 `Ctrl+Shift+D`；也可以设置一个安全词，在聊天里输入它打开。
 - 当前范围：只调聊天语气/称呼/情绪/主动性；没有记忆、日程、专注等模块。
-- 如果窗口没打开：把终端里的报错发我（**不要发 Key**）；`npm` 被 PowerShell 拦截时用 `npm.cmd`。
 
 ## 这是什么
 

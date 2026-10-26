@@ -2,12 +2,13 @@
   "name": "ai-companion-persona-lab",
   "version": "0.1.0",
   "private": true,
-  "description": "Persona Lab — a small Electron tool to tune the AI companion's persona before building the full app.",
+  "description": "Persona Lab — a small local tool to tune the AI companion's persona before building the full app.",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "web": "node --experimental-strip-types --no-warnings server/index.mts",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -22,7 +23,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.1.2",
-    "electron": "^44.0.0",
+    "electron": "^38.8.6",
     "electron-vite": "^6.0.0",
     "typescript": "^5.9.0",
     "vite": "^8.3.5"

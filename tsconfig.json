@@ -11,6 +11,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["node"],
     "baseUrl": ".",
@@ -21,6 +22,7 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
+    "server/**/*.mts",
     "electron.vite.config.ts"
   ]
 }

@@ -111,29 +111,46 @@ C:\Users\6fish\Desktop\AI伙伴\
 
 ## 8. 运行 P0.5 人设调试器（当前可用）
 
-最简单：双击根目录的 `start-persona-lab.cmd`。
+### 8.1 浏览器版（推荐）
 
-或者用 PowerShell：
+**双击根目录的 `start-persona-lab-web.cmd`。** 它会启动本地 Node 服务并打开 Edge：
+
+```text
+http://127.0.0.1:4173
+```
+
+也可以手动：
 
 ```powershell
 cd "C:\Users\6fish\Desktop\AI伙伴"
-npm.cmd install
+npm.cmd run build
+npm.cmd run web
+```
+
+浏览器版说明：
+
+- 不需要 Electron；Node 做后台，Edge 做界面。
+- API Key 只保存在本次 Node 进程内存里，**不落盘**；重启服务要重填。
+- 关闭那个黑色命令行窗口 = 关闭服务。
+
+### 8.2 Electron 版（当前 Windows 11 26200 会崩）
+
+```powershell
+cd "C:\Users\6fish\Desktop\AI伙伴"
 npm.cmd run dev
 ```
 
-> PowerShell 里请用 `npm.cmd`；`npm` 可能被脚本执行策略拦住。`cmd` 里可以直接用 `npm`。
-> Electron 二进制当前已装好；重装依赖时如果 GitHub 下载失败，先执行 `$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'`，再 `npm.cmd install`。
+> 当前机器上 Electron 连 `--version` 都会 `STATUS_BREAKPOINT`（`-2147483645`）。DSH 能跑是因为它是**签名、打包好的 Electron 成品**，自带运行时；我们用的是本地**未签名 dev 版 Electron**。先用浏览器版，最终 app 再选 Tauri 或正式签名的桌面壳。
 
-首次运行：
+### 8.3 首次运行设置
 
 1. 点“设置”，填 AI 名字、你的名字/称呼、关系；
 2. 没有 Key 就保持“演示模式”，先看界面；
 3. 有 Key：设置 → DeepSeek API Key → 粘贴 → 取消“演示模式” → 保存；
 4. 聊天；点“调试人设”或按 `Ctrl+Shift+D` 调语气。
 
-- `npm.cmd run build` 只构建，不打开窗口。
-- 如果窗口没打开：把终端报错发我（**不要发 Key**）。
 - P0.5 没有记忆/日程/专注；完整 app 见 P1。
+- **不要把 Key 发到聊天/截图/Git**。
 
 ## 9. 常见问题
 
