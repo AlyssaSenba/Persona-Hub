@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+out/
+build/
+release/
+*.tsbuildinfo
+
+# runtime data (private: memory, chat, credentials, backups)
+data/
+memory/
+config/
+backups/
+logs/
+tmp/
+*.sqlite
+*.sqlite3
+*.db
+
+# secrets
+.env
+.env.*
+!.env.example
+secrets/
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# logs
+*.log
+npm-debug.log*
