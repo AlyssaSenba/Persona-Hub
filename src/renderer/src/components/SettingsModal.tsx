@@ -1,0 +1,219 @@
+import type { LabSettings, PersonaPatch, PublicSettings } from '@shared/types';
+
+interface Props {
+  settings: PublicSettings;
+  form: LabSettings;
+  apiKeyInput: string;
+  saving: boolean;
+  personaPath: string;
+  patches: PersonaPatch[];
+  onFormChange: (patch: Partial<LabSettings>) => void;
+  onApiKeyChange: (value: string) => void;
+  onSave: () => void;
+  onClearKey: () => void;
+  onOpenConfig: () => void;
+  onRevert: (patchId: string) => void;
+  onClose: () => void;
+}
+
+export function SettingsModal(props: Props) {
+  const { settings, form, apiKeyInput, saving, personaPath, patches } = props;
+  const activePatches = patches.filter((patch) => patch.active);
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal settings-modal" role="dialog" aria-modal="true" aria-label="设置">
+        <header className="modal-head">
+          <div>
+            <h2>设置</h2>
+            <p>名字、称呼、关系和调试入口。</p>
+          </div>
+          <button type="button" className="icon-button" onClick={props.onClose} aria-label="关闭">
+            ×
+          </button>
+        </header>
+
+        <div className="modal-body">
+          <section className="form-section">
+            <h3>他是谁</h3>
+            <div className="field-grid">
+              <label className="field">
+                <span>AI 名字</span>
+                <input
+                  value={form.aiName}
+                  onChange={(event) => props.onFormChange({ aiName: event.target.value })}
+                  placeholder="例如：沈砚"
+                />
+              </label>
+              <label className="field">
+                <span>你对他的昵称（可选）</span>
+                <input
+                  value={form.aiNickname}
+                  onChange={(event) => props.onFormChange({ aiNickname: event.target.value })}
+                  placeholder="例如：砚"
+                />
+              </label>
+              <label className="field">
+                <span>关系</span>
+                <select
+                  value={form.relationship}
+                  onChange={(event) =>
+                    props.onFormChange({
+                      relationship: event.target.value as LabSettings['relationship'],
+                    })
+                  }
+                >
+                  <option value="couple">情侣</option>
+                  <option value="friend">朋友</option>
+                  <option value="family">家人</option>
+                  <option value="mentor">导师</option>
+                  <option value="custom">自定义</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>年龄感</span>
+                <input value="21–27（人设内固定）" readOnly />
+              </label>
+            </div>
+          </section>
+
+          <section className="form-section">
+            <h3>他怎么称呼你</h3>
+            <div className="field-grid">
+              <label className="field">
+                <span>你的名字（可选）</span>
+                <input
+                  value={form.userName}
+                  onChange={(event) => props.onFormChange({ userName: event.target.value })}
+                  placeholder="例如：小六"
+                />
+              </label>
+              <label className="field">
+                <span>你的昵称（可选）</span>
+                <input
+                  value={form.userNickname}
+                  onChange={(event) => props.onFormChange({ userNickname: event.target.value })}
+                  placeholder="例如：六六"
+                />
+              </label>
+              <label className="field">
+                <span>称呼偏好</span>
+                <select
+                  value={form.addressPreference}
+                  onChange={(event) =>
+                    props.onFormChange({
+                      addressPreference: event.target.value as LabSettings['addressPreference'],
+                    })
+                  }
+                >
+                  <option value="you">默认“你”</option>
+                  <option value="name">多用名字</option>
+                  <option value="nickname">多用昵称</option>
+                  <option value="formal">用“您”</option>
+                </select>
+              </label>
+            </div>
+            <p className="hint">不会每句都叫名字；昵称需要你同意后才会用。</p>
+          </section>
+
+          <section className="form-section">
+            <h3>调试入口</h3>
+            <label className="field">
+              <span>安全词（可选）</span>
+              <input
+                value={form.safeWord}
+                onChange={(event) => props.onFormChange({ safeWord: event.target.value })}
+                placeholder="例如：今天不演了"
+              />
+            </label>
+            <p className="hint">
+              在聊天中“完全等于”这个词时，会本地打开调试，不会发给模型。也可以按 Ctrl+Shift+D。
+            </p>
+          </section>
+
+          <section className="form-section">
+            <h3>模型</h3>
+            <label className="field">
+              <span>DeepSeek API Key</span>
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(event) => props.onApiKeyChange(event.target.value)}
+                placeholder={settings.hasApiKey ? '已保存；留空不修改' : 'sk-...'}
+                autoComplete="off"
+              />
+            </label>
+            <div className="inline-row">
+              <span className={settings.hasApiKey ? 'ok' : 'muted'}>
+                {settings.hasApiKey ? 'Key 已加密保存' : '未配置 Key'}
+              </span>
+              {settings.hasApiKey ? (
+                <button type="button" className="ghost small" onClick={props.onClearKey}>
+                  清除 Key
+                </button>
+              ) : null}
+            </div>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={form.demoMode}
+                onChange={(event) => props.onFormChange({ demoMode: event.target.checked })}
+              />
+              <span>演示模式（不调用真实模型）</span>
+            </label>
+            <p className="hint">
+              没有 Key 也能看界面；要真实调性格，关掉演示模式并填入 Key。
+            </p>
+          </section>
+
+          <section className="form-section">
+            <h3>生效中的 patch</h3>
+            {activePatches.length === 0 ? (
+              <p className="hint">还没有。打开调试，输入“别老反问”试试。</p>
+            ) : (
+              <div className="patch-list">
+                {activePatches.map((patch) => (
+                  <div className="patch-row" key={patch.id}>
+                    <div>
+                      <strong>{patch.title}</strong>
+                      <p>{patch.rules.length} 条规则</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="ghost small"
+                      onClick={() => props.onRevert(patch.id)}
+                    >
+                      回滚
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="form-section">
+            <h3>文件</h3>
+            <p className="path-line" title={personaPath}>
+              {personaPath}
+            </p>
+            <p className="hint">patch 会写到 config/persona-patches/，不会改 persona.md。</p>
+          </section>
+        </div>
+
+        <footer className="modal-foot">
+          <button type="button" className="ghost" onClick={props.onOpenConfig}>
+            打开配置目录
+          </button>
+          <div className="modal-foot-right">
+            <button type="button" className="ghost" onClick={props.onClose}>
+              取消
+            </button>
+            <button type="button" className="primary" onClick={props.onSave} disabled={saving}>
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}

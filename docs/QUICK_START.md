@@ -109,29 +109,27 @@ C:\Users\6fish\Desktop\AI伙伴\
 | Patch | 对人设的叠加修改；可预览/回滚 |
 | 调试模式 | 暂时跳出角色，改语气/称呼/情绪强度；不关闭安全边界 |
 
-## 8. 以后怎么运行（骨架完成后）
+## 8. 运行 P0.5 人设调试器（当前可用）
 
-> 下面是计划，不是现在可用的命令。
-
-```bash
-# 安装依赖
+```powershell
+cd "C:\Users\6fish\Desktop\AI伙伴"
 npm.cmd install
-
-# 开发模式
 npm.cmd run dev
-
-# 打包 Windows 便携版
-npm.cmd run build
 ```
 
 > PowerShell 里请用 `npm.cmd`；`npm` 可能被脚本执行策略拦住。`cmd` 里可以直接用 `npm`。
+> Electron 二进制当前已装好；重装依赖时如果 GitHub 下载失败，先执行 `$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'`，再 `npm.cmd install`。
 
-首次运行会：
+首次运行：
 
-1. 检查数据目录；
-2. 引导 18+ 确认 + 3 步设定；
-3. 让你选演示模式或填 Key；
-4. 进入日常聊天。
+1. 点“设置”，填 AI 名字、你的名字/称呼、关系；
+2. 没有 Key 就保持“演示模式”，先看界面；
+3. 有 Key：设置 → DeepSeek API Key → 粘贴 → 取消“演示模式” → 保存；
+4. 聊天；点“调试人设”或按 `Ctrl+Shift+D` 调语气。
+
+- `npm.cmd run build` 只构建，不打开窗口。
+- 如果窗口没打开：把终端报错发我（**不要发 Key**）。
+- P0.5 没有记忆/日程/专注；完整 app 见 P1。
 
 ## 9. 常见问题
 
