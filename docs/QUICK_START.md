@@ -9,6 +9,15 @@
 3. 一个 DeepSeek 账号 + 少量余额（可选；没有也能先用演示模式）。
 4. 读一遍 [`PRD.md`](PRD.md) 和 [`COST.md`](COST.md)。
 
+## 1.1 还需要下载什么
+
+- **现在不用额外下载**。Node 24、npm 11、Git 已装；第一次 `npm install` 会自动下载 Electron/React 等依赖。
+- PowerShell 可能禁止 `npm.ps1`：用 `npm.cmd` 或 `cmd /c npm`，不需要改系统策略。
+- 不需要：Python（当前只是商店别名）、Visual Studio Build Tools、Rust、Docker、Unity、pnpm、OCR/TTS 服务。
+- 可选：VS Code（看/改代码）。
+- 如果以后原生 SQLite 没有预编译包，才可能需要 Python + VS Build Tools；我会先验证，尽量不让你装。
+- DeepSeek API Key 不是下载，去平台创建；没有也能演示模式。
+
 ## 2. API Key 是什么
 
 API Key 是 DeepSeek 平台发给你的一个字符串（通常以 `sk-` 开头），作用像**“充值卡 + 门禁卡”**：
@@ -33,6 +42,7 @@ API Key 是 DeepSeek 平台发给你的一个字符串（通常以 `sk-` 开头�
 - 不要把 Key 发在聊天里、截图里、Git 里。
 - 如果怀疑泄露：去平台撤销该 Key，再生成新的。
 - 应用用 Windows 系统凭据加密保存 Key；不会写进日志/导出。
+- 如果你在平台上看到已有的 “DeepSeek Harness” Key：那是当前工具自己用的，**不要复用它，也不要删除它**；给 AI伙伴 新建一个专用 Key。
 
 ## 4. 没有 Key 也能用吗
 

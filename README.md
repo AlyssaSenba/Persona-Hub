@@ -49,16 +49,17 @@
 | 使用范围 | 只给自己用；Windows 优先 |
 | 形态 | 普通窗口 + 可收起侧边栏；纯文字 + 暖色房间/夜灯/纸质氛围；不做立绘/桌宠/语音 |
 | 伙伴数量 | 单伙伴；数据结构预留多角色 |
-| 人设 | 等用户提供；之前只做槽位、待设定占位、引导 UI，不写具体人格 |
+| 人设 | `persona.md` v0.1 已起草（男/成熟/冷静/高智/外冷内热），待你确认/修改 |
 | 关系/内容 | 恋爱/暧昧/更亲密可以；不直接描写性行为；首次启动 18+ 确认 |
-| 模型 | DeepSeek `deepseek-flash`；默认低思考/非思考，复杂任务 high，可手动切 |
+| 模型 | DeepSeek `deepseek-flash`；聊天默认不深度思考，high 手动开；背景任务可单独高 |
 | 记忆 | Markdown 真相源 + SQLite 索引；自动写入 + 收件箱；心理咨询敏感内容不主动提 |
 | 数据 | 工作区 `data/`、`memory/`、`config/`、`backups/`；私密内容不进 Git；API Key 加密 |
 | 成本 | 每日上限 ¥2；先充 ¥20 试水 |
 | 提醒 | 托盘常驻 + 开机自启 + Windows 通知；免打扰时闲聊静默，硬提醒仍响 |
+| 主动 | 频率可选：1–2 次/天、2–3 次/天、60–90 分钟、约 30 分钟、自定义；默认 2–3 次/天，带安静时段/降频 |
 | 咨询 | CBT / ACT / 人本 / 正念 / 混合；不诊断、不替代专业帮助；危机 0–3 级；中国大陆 12356 |
 | 技能 | 编程 / 塔罗 / 游戏开发；首版不执行代码，只给代码、讲解、审查 |
-| 游戏 | 文字冒险、故事接龙、文字图寻、海龟汤、AI 二十问、五子棋 |
+| 游戏 | 文字冒险、故事接龙、文字图寻、海龟汤、AI 二十问、五子棋；游戏中保持核心人设，角色层可切换 |
 
 完整决策见 [`docs/DECISIONS.md`](docs/DECISIONS.md)。
 
@@ -73,7 +74,7 @@
 - **编排**：Vercel AI SDK + 自建 DeepSeek 适配层（处理 `reasoning_content` 与工具调用的兼容性）
 - **校验**：Zod（IPC、工具参数、外部数据）
 
-> 技术栈是计划，不是既成事实；真正搭骨架时会先做最小验证（SQLite 原生模块、思考模式 + 工具调用、Windows 通知）。
+> 技术栈是计划，不是既成事实；真正搭骨架时会先做最小验证（SQLite 原生/WASM 方案、思考模式 + 工具调用、Windows 通知）。本机环境与需要下载什么，见 [`docs/ARCHITECTURE.md` 2.1](docs/ARCHITECTURE.md)。
 
 ## 数据放在哪
 
@@ -86,6 +87,7 @@ C:\Users\6fish\Desktop\AI伙伴\
   config/        配置与加密后的 API Key
   backups/       每日自动快照与手动导出
   docs/          文档
+  persona.md     初版人设（可改；应用读取它作为 core_persona）
   src/           代码（后续）
 ```
 
@@ -108,7 +110,8 @@ DeepSeek Flash 很便宜；按正常使用（每天 20–50 轮），约 **¥0.2
 | [`docs/SECURITY.md`](docs/SECURITY.md) | 威胁模型、权限、prompt injection、密钥、隐私 |
 | [`docs/CONTENT_POLICY.md`](docs/CONTENT_POLICY.md) | AI 身份、亲密边界、危机协议、依赖防护 |
 | [`docs/COST.md`](docs/COST.md) | 价格、场景估算、预算、降级策略 |
-| [`docs/PERSONA_TEMPLATE.md`](docs/PERSONA_TEMPLATE.md) | 人设模板（等用户填写） |
+| [`persona.md`](persona.md) | 初版人设 v0.1（男/成熟/冷静/高智/外冷内热），待你确认/修改 |
+| [`docs/PERSONA_TEMPLATE.md`](docs/PERSONA_TEMPLATE.md) | 人设模板（用于后续补充/改版） |
 | [`docs/QUICK_START.md`](docs/QUICK_START.md) | 小白术语、API Key 教程、运行方式、FAQ |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | 决策记录与理由 |
 | [`docs/RESEARCH.md`](docs/RESEARCH.md) | 社区调研、参考项目、采纳/拒绝的理由 |

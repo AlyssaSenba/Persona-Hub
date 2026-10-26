@@ -167,9 +167,14 @@ export interface Settings {
   apiKeyConfigured: boolean;
   demoMode: boolean;
   model: string;                 // 'deepseek-flash'
-  defaultThinking: 'off' | 'low' | 'high';
+  chatThinking: 'off' | 'on-demand';  // 聊天默认 off；on-demand = 输入框可手动开 high
   dailyBudgetCny: number;        // 默认 2
   dataRoot: string;              // 默认工作区
+  proactive: {
+    mode: 'off' | 'low' | 'normal' | 'high' | 'companion' | 'custom';
+    intervalMin?: number;        // custom 时使用
+    quietHours: [string, string];
+  };
   notifications: { enabled: boolean; sound: boolean; quietHours: [string, string] };
   dnd: { until?: string; hardReminders: boolean };
   privateRoomLocked: boolean;
@@ -181,7 +186,7 @@ export interface ChatSendInput {
   room: RoomId;
   text: string;
   attachments?: { kind: 'image' | 'file'; path: string }[];
-  thinking?: 'off' | 'low' | 'high';
+  thinking?: 'off' | 'low' | 'high';  // 默认 off；只有用户手动开才 high
   requestId?: string;
 }
 

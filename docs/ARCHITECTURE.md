@@ -49,12 +49,41 @@
 | 编排 | Vercel AI SDK + 自定义 DeepSeek 适配层 | 流式/工具生态；适配 `reasoning_content` |
 | 测试 | Vitest + Playwright | 单元/集成/E2E |
 
-### 2.1 版本策略
+### 2.1 本机环境与安装清单
 
-- Node：24.x（当前机器已安装）。
-- 包管理器：`npm`（机器上没有 pnpm；不额外引入）。
+**当前机器（2026-10 检查）**
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| Windows | Windows 11 (10.0.26200) | 目标平台 |
+| Node.js | 24.21.0 已装 | 运行主进程/构建 |
+| npm | 11.19.0 已装 | 随 Node 自带；**PowerShell 禁止 `npm.ps1`，请用 `npm.cmd`** |
+| Git | 2.56.0 已装 | 版本管理 |
+| pnpm | 未装 | 不需要；本项目用 npm |
+| Python | 只有 Microsoft Store 别名 | 不是可用 Python；暂不需要 |
+| Visual Studio Build Tools / MSVC | 未装 | 只在原生模块没有预编译包时需要 |
+| VS Code | 未装 | 可选；方便看/改代码 |
+| Docker / Rust / Unity | 未装 | 不需要 |
+
+**需要下载/安装的**
+
+- **现在：不需要额外下载**（除了可选的 VS Code）。
+- 第一次 `npm install` 会自动下载 Electron/React/Vite/TypeScript 等（约几百 MB）；不需要手动装“引擎”。
+- DeepSeek API Key：不是下载，去 `platform.deepseek.com` 创建；没有也能演示模式。
+- 如果 `better-sqlite3` 没有可用的 Electron 预编译包：再装 Python 3.11+ 和 Visual Studio Build Tools（Desktop development with C++）；或者改用纯 JS/WASM SQLite（`sql.js` / `node:sqlite`，需验证）避免大安装。搭骨架时先验证，不先让你装。
+- 打包时 `electron-builder` 会自动下载 NSIS 等工具；不需要手动。
+- 网络：npm/Electron 二进制需要网络；代理按系统设置。
+
+**明确不需要**
+
+- 游戏引擎（Unity/Unreal）、Docker、Rust、Tauri、本地大模型、OCR/TTS 服务、移动端 SDK、pnpm。
+
+**版本策略**
+
+- Node：24.x。
+- 包管理器：`npm`（用 `npm.cmd` 规避 PowerShell 脚本限制）。
 - Electron/React 版本在搭骨架时锁定到当时稳定版；不追最新。
-- TypeScript `strict: true`；禁止 `any` 泛滥（外部数据用 `unknown` + Zod）。
+- TypeScript `strict: true`；外部数据用 `unknown` + Zod，禁止 `any` 泛滥。
 
 ### 2.2 明确不引入
 
@@ -125,6 +154,7 @@ ai-companion/
   electron.vite.config.ts
   tsconfig.json
   docs/
+  persona.md
   src/
     main/
       index.ts
@@ -422,7 +452,7 @@ memory/
 ### 7.2 Prompt 组装顺序（稳定前缀优先，便于缓存）
 
 1. **系统宪法**：身份、诚实、能力边界、安全、内容政策（稳定）。
-2. **人格**：`persona.md`（稳定）。
+2. **人格**：`persona.md`（core_persona，稳定；不可被房间/游戏覆盖）。
 3. **关系**：`relationship.md`（较稳定）。
 4. **用户模型摘要**：1–2k（半稳定）。
 5. **房间规则**：当前房间的目标/语气/工具（稳定）。
@@ -433,6 +463,7 @@ memory/
 10. **时间/地区/系统状态**：动态。
 
 > 稳定内容放前面，DeepSeek 的自动缓存更容易命中。
+> 人设分两层：`core_persona`（不可被房间/游戏覆盖）+ `role_layer`（游戏/NPC/语言练习，可切换）。
 
 ### 7.3 Token 预算（每轮目标 8–12k）
 
@@ -464,8 +495,10 @@ DeepSeek 官方要求：请求带 `tools` 时，`reasoning_content` 必须完整
 
 策略：
 
-- **纯聊天/咨询/规划（无 tools）**：可开 `thinking: enabled` + `reasoning_effort: low/high`；不把 `reasoning_content` 回传（无 tools 时会被忽略）。
+- **聊天默认关**：日常聊天 + 各模块内置聊天默认 `thinking: disabled`；只有用户在输入框手动打开“深度思考”时才 `enabled`（更慢/更贵）。
+- **纯聊天/咨询/规划（无 tools，用户手动开）**：可开 `thinking: enabled` + `reasoning_effort: low/high`；不把 `reasoning_content` 回传（无 tools 时会被忽略）。
 - **工具回合**：`thinking: disabled`，避免 `reasoning_content` 回传问题；工具调用仍可用。
+- **背景任务**：记忆整理/计划生成/导入解析可用 thinking（无 tools），不影响聊天回复。
 - **需要“深度思考 + 工具”**：两阶段——先无工具思考出计划（JSON），再非思考执行工具；或实现自定义适配器保存并回传 `reasoning_content`。
 - **AI SDK 风险**：`@ai-sdk` 生态对 `reasoning_content` 支持不完整；首版用自定义 `DeepSeekClient`（fetch）控制请求/响应，AI SDK 只用于流式 UI 或不用。搭骨架时先做最小验证。
 - **strict 模式**：DeepSeek 支持 beta `strict` tool schema；可用于关键工具，但需 `base_url=/beta` 且 schema 约束严格；首版可不用，靠 Zod 二次校验。
@@ -484,6 +517,14 @@ DeepSeek 官方要求：请求带 `tools` 时，`reasoning_content` 必须完整
 - 取消：AbortController；保存已生成部分为“已停止”。
 - 重生成：删除上一条 assistant 消息（软删除），不重复写记忆；记忆提取以最终消息为准。
 - 编辑用户消息：截断后续分支；旧分支归档（可选）。
+
+### 7.8 人设一致性
+
+- 两层：`core_persona`（根 `persona.md` / 运行时 `config/persona.md`）+ `role_layer`（房间/游戏/NPC/语言练习）。
+- 每轮注入 `core_persona`；`role_layer` 只追加，不替换。
+- 游戏/语言练习/咨询可以改变语气/角色，但核心边界/价值观/幽默底色不变。
+- 禁止：角色层覆盖内容政策/危机协议/能力边界；游戏结束仍停留角色；把游戏设定写进现实核心记忆。
+- 评测：固定场景集，检查“还是他/不太死板/不越界”。
 
 ---
 
