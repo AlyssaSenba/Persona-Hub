@@ -16,6 +16,10 @@
 
 ## P0.5 快速运行
 
+最简单：双击根目录的 `start-persona-lab.cmd`。
+
+或者用 PowerShell：
+
 ```powershell
 cd "C:\Users\6fish\Desktop\AI伙伴"
 npm.cmd run dev

@@ -111,6 +111,10 @@ C:\Users\6fish\Desktop\AI伙伴\
 
 ## 8. 运行 P0.5 人设调试器（当前可用）
 
+最简单：双击根目录的 `start-persona-lab.cmd`。
+
+或者用 PowerShell：
+
 ```powershell
 cd "C:\Users\6fish\Desktop\AI伙伴"
 npm.cmd install
