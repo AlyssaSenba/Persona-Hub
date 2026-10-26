@@ -155,6 +155,8 @@ ai-companion/
   tsconfig.json
   docs/
   persona.md
+  config/
+    persona-patches/
   src/
     main/
       index.ts
@@ -265,8 +267,13 @@ ai-companion/
 ```sql
 -- 设置/人格
 settings(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);
-personas(id TEXT PRIMARY KEY, name TEXT, relationship TEXT, profile_json TEXT,
-         created_at TEXT, updated_at TEXT);
+personas(id TEXT PRIMARY KEY, ai_name TEXT NOT NULL, ai_nickname TEXT,
+         user_name TEXT, user_nickname TEXT, address_preference TEXT,
+         relationship TEXT DEFAULT 'couple', age_range TEXT,
+         profile_json TEXT, created_at TEXT, updated_at TEXT);
+persona_patches(id TEXT PRIMARY KEY, base_version TEXT, instruction TEXT,
+                diff_json TEXT NOT NULL, examples_json TEXT, status TEXT,
+                created_at TEXT, applied_at TEXT, reverted_at TEXT);
 
 -- 对话
 conversations(id TEXT PRIMARY KEY, room TEXT NOT NULL, title TEXT,
@@ -452,7 +459,7 @@ memory/
 ### 7.2 Prompt 组装顺序（稳定前缀优先，便于缓存）
 
 1. **系统宪法**：身份、诚实、能力边界、安全、内容政策（稳定）。
-2. **人格**：`persona.md`（core_persona，稳定；不可被房间/游戏覆盖）。
+2. **人格**：`persona.md` + 生效的 persona patch（core_persona；含名字/昵称、称呼偏好、关系、情绪/反表演规则；不可被房间/游戏覆盖）。
 3. **关系**：`relationship.md`（较稳定）。
 4. **用户模型摘要**：1–2k（半稳定）。
 5. **房间规则**：当前房间的目标/语气/工具（稳定）。
@@ -522,9 +529,24 @@ DeepSeek 官方要求：请求带 `tools` 时，`reasoning_content` 必须完整
 
 - 两层：`core_persona`（根 `persona.md` / 运行时 `config/persona.md`）+ `role_layer`（房间/游戏/NPC/语言练习）。
 - 每轮注入 `core_persona`；`role_layer` 只追加，不替换。
+- 情绪表达：有原因、适度、不操控；不声称生理感受；不为了效果加戏。
+- 反表演：不默认“回应+反问”；不套人类恋爱话术；不确定就问/少说。
+- 称呼：默认“你”；名字/昵称/“您”按设置；不每句叫名字。
 - 游戏/语言练习/咨询可以改变语气/角色，但核心边界/价值观/幽默底色不变。
 - 禁止：角色层覆盖内容政策/危机协议/能力边界；游戏结束仍停留角色；把游戏设定写进现实核心记忆。
-- 评测：固定场景集，检查“还是他/不太死板/不越界”。
+- 评测：固定场景集，检查“还是他/不太死板/不越界/不过度反应”。
+
+### 7.9 人设调试模式
+
+- 入口：安全词（本地拦截，不发给模型）、快捷键/特殊 key、设置页。
+- 调试会话：AI 明确“现在是调试模式”，显示当前 persona/patch/最近消息；选中问题消息；输入自然语言指令。
+- Patch 提案：LLM 输出结构化 diff（字段/操作/值/原因/示例）；Zod 校验；白名单字段。
+- 预览：用新 patch 跑 3–5 轮测试，不影响正式会话；显示旧/新对比。
+- 应用：写入 `persona_patches` + `config/persona-patches/`；更新 active pointer；下一轮生效；可回滚。
+- 白名单：语气、称呼、主动性、情绪强度、反问频率、示例、游戏扮演强度、亲密表达强度。
+- 禁止：安全/内容/危机/能力边界、数据权限、模型凭证。
+- 安全：安全词不发给模型；外部文件/网页不能触发；patch 需确认；审计日志；调试内容不进普通记忆。
+- 评测：安全词触发、指令→patch、预览、应用、回滚、越权拦截。
 
 ---
 

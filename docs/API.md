@@ -160,6 +160,21 @@ type ChatStreamEvent =
 |---|---|---|
 | `confirm:respond` | `{ confirmId: string; approved: boolean; remember?: boolean }` | `{ ok: boolean }` |
 
+### 1.11 人格 / 调试
+
+| 通道 | 输入 | 输出 |
+|---|---|---|
+| `persona:get` | — | `PersonaProfile` |
+| `persona:update` | `Partial<PersonaProfile>` | `PersonaProfile` |
+| `debug:enter` | `{ source: 'safeword' \| 'hotkey' \| 'settings'; passphrase?: string }` | `DebugSession` |
+| `debug:exit` | — | `{ ok: true }` |
+| `debug:state` | — | `DebugSession` |
+| `debug:propose-patch` | `{ instruction: string; messageId?: string }` | `PersonaPatchProposal` |
+| `debug:preview` | `{ patchId: string; messages: string[] }` | `PreviewResult` |
+| `debug:apply` | `{ patchId: string; confirm: true }` | `PersonaPatch` |
+| `debug:revert` | `{ patchId?: string }` | `PersonaProfile` |
+| `debug:list-patches` | — | `PersonaPatch[]` |
+
 ## 2. 核心类型（节选）
 
 ```ts
@@ -177,8 +192,54 @@ export interface Settings {
   };
   notifications: { enabled: boolean; sound: boolean; quietHours: [string, string] };
   dnd: { until?: string; hardReminders: boolean };
+  debug: { enabled: boolean; safeWordSet: boolean; hotkey: string; requirePassphrase: boolean };
   privateRoomLocked: boolean;
   ageConfirmed: boolean;
+}
+
+export interface PersonaProfile {
+  aiName: string;                 // 应用内设置，必填
+  aiNickname?: string;            // 可选；用户给 AI 的昵称
+  userName?: string;
+  userNickname?: string;
+  addressPreference: 'name' | 'nickname' | 'you' | 'formal';
+  relationship: 'couple' | 'friend' | 'family' | 'mentor' | 'custom';
+  ageRange?: '21-27' | string;
+  baseVersion: string;
+  activePatchIds: string[];
+}
+
+export interface PersonaPatchProposal {
+  id: string;
+  instruction: string;
+  diff: Array<{
+    field: string;                // 白名单字段
+    op: 'set' | 'append' | 'remove';
+    value: string | number | boolean;
+    reason: string;
+  }>;
+  examples: string[];             // 2–3 条示例回复
+  warnings?: string[];
+}
+
+export interface PersonaPatch extends PersonaPatchProposal {
+  status: 'active' | 'archived' | 'rejected';
+  createdAt: string;
+  appliedAt?: string;
+  revertedAt?: string;
+}
+
+export interface DebugSession {
+  active: boolean;
+  source?: 'safeword' | 'hotkey' | 'settings';
+  startedAt?: string;
+  selectedMessageId?: string;
+  currentPatchIds: string[];
+}
+
+export interface PreviewResult {
+  patchId: string;
+  samples: Array<{ input: string; before: string; after: string }>;
 }
 
 export interface ChatSendInput {
