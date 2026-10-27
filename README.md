@@ -47,7 +47,7 @@ Windows PowerShell 里把 `npm` 换成 `npm.cmd`。可用环境变量 `PORT`（�
 ### 首次设置
 
 - 首次打开：点“设置”，填 AI 名字、称呼、关系，保存。
-- 接真实模型：设置 → DeepSeek API Key → 粘贴 → 取消“演示模式” → 保存。
+- 接真实模型（推荐）：把 `DEEPSEEK_API_KEY=...` 写进根目录 `.env`，服务端每次请求实时读取，改完不用重启；`.env` 已 gitignore。也可以设置页临时填 Key（仅本次 Node 内存），`.env` 优先。
 - 调人设：点“调试人设”，或按 `Ctrl+Shift+D`；也可以设置一个安全词，在聊天里输入它打开。
 - 当前范围：只调聊天语气/称呼/情绪/主动性；没有记忆、日程、专注等模块。
 
@@ -93,7 +93,7 @@ Windows PowerShell 里把 `npm` 换成 `npm.cmd`。可用环境变量 `PORT`（�
 | 关系/内容 | 当前人设关系为情侣（可改）；恋爱/暧昧/更亲密可以；不直接描写性行为；首次启动 18+ 确认 |
 | 模型 | DeepSeek `deepseek-flash`；聊天默认不深度思考，high 手动开；背景任务可单独高 |
 | 记忆 | Markdown 真相源 + SQLite 索引；自动写入 + 收件箱；心理咨询敏感内容不主动提 |
-| 数据 | 工作区 `data/`、`memory/`、`config/`、`backups/`；私密内容不进 Git；API Key 目前仅内存 |
+| 数据 | 工作区 `data/`、`memory/`、`config/`、`backups/`；私密内容不进 Git；API Key 优先从 `.env` 实时读取，设置页填的仅内存 |
 | 成本 | 每日上限 ¥2；先充 ¥20 试水 |
 | 提醒 | 托盘常驻 + 开机自启 + 系统通知（P1，随桌面壳实现）；免打扰时闲聊静默，硬提醒仍响 |
 | 主动 | 频率可选：1–2 次/天、2–3 次/天、60–90 分钟、约 30 分钟、自定义；默认 2–3 次/天，带安静时段/降频 |
@@ -129,7 +129,9 @@ Windows PowerShell 里把 `npm` 换成 `npm.cmd`。可用环境变量 `PORT`（�
 
 ```text
 Persona-Hub/
-  config/        运行时配置（当前：web-settings.json、persona-patches/；API Key 不落盘）
+  config/        运行时配置（当前：web-settings.json、persona-patches/；不含 Key）
+  .env           本地密钥（gitignored）
+  .env.example   密钥模板（可提交）
   persona.md     人设（只读；应用读取它作为核心人设）
   docs/          文档
   server/        Node 服务
@@ -138,7 +140,7 @@ Persona-Hub/
 ```
 
 P1+ 计划再增加 `data/`（SQLite）、`memory/`（Markdown 长期记忆）、`backups/`。
-`config/`、`data/`、`memory/`、`backups/`、`out/` 已在 `.gitignore` 中排除，避免隐私进入 Git。
+`config/`、`data/`、`memory/`、`backups/`、`out/`、`.env` 已在 `.gitignore` 中排除，避免隐私进入 Git。
 
 ## 成本
 

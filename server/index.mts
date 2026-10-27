@@ -26,6 +26,7 @@ const ROOT = process.cwd();
 const CONFIG_DIR = path.join(ROOT, 'config');
 const PATCH_DIR = path.join(CONFIG_DIR, 'persona-patches');
 const SETTINGS_FILE = path.join(CONFIG_DIR, 'web-settings.json');
+const ENV_FILE = path.join(ROOT, '.env');
 const PERSONA_FILE = path.join(ROOT, 'persona.md');
 const RENDERER_DIR = path.join(ROOT, 'out', 'renderer');
 
@@ -43,6 +44,35 @@ const DEFAULT_SETTINGS: LabSettings = {
 
 let apiKey: string | null = null;
 const controllers = new Map<string, AbortController>();
+
+function readEnvApiKey(): string | null {
+  try {
+    if (!fs.existsSync(ENV_FILE)) return null;
+    const text = fs.readFileSync(ENV_FILE, 'utf8');
+    for (const line of text.split(/\r?\n/)) {
+      const match = line.match(/^\s*(?:export\s+)?DEEPSEEK_API_KEY\s*=\s*(.*)\s*$/);
+      if (!match) continue;
+      let value = match[1].trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      return value.trim() || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function resolveApiKey(): { key: string | null; source: 'env' | 'memory' | 'none' } {
+  const envKey = readEnvApiKey();
+  if (envKey) return { key: envKey, source: 'env' };
+  if (apiKey) return { key: apiKey, source: 'memory' };
+  return { key: null, source: 'none' };
+}
 
 function ensureDirs(): void {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -92,8 +122,11 @@ function saveSettings(input: SettingsSaveInput): LabSettings {
   return next;
 }
 
-function publicSettings(settings: LabSettings): LabSettings & { hasApiKey: boolean } {
-  return { ...settings, hasApiKey: Boolean(apiKey) };
+function publicSettings(
+  settings: LabSettings,
+): LabSettings & { hasApiKey: boolean; keySource: 'env' | 'memory' | 'none' } {
+  const resolved = resolveApiKey();
+  return { ...settings, hasApiKey: Boolean(resolved.key), keySource: resolved.source };
 }
 
 function getPersonaText(): { text: string; path: string } {
@@ -363,6 +396,7 @@ function serveStatic(res: http.ServerResponse, pathname: string): void {
 
 async function handleChat(req: http.IncomingMessage, res: http.ServerResponse, input: ChatSendInput): Promise<void> {
   const settings = loadSettings();
+  const key = resolveApiKey().key;
   const persona = getPersonaText().text;
   const controller = new AbortController();
   controllers.set(input.requestId, controller);
@@ -376,7 +410,7 @@ async function handleChat(req: http.IncomingMessage, res: http.ServerResponse, i
   });
 
   try {
-    if (!apiKey || settings.demoMode) {
+    if (!key || settings.demoMode) {
       const reply = demoReply(input.text);
       for (let index = 0; index < reply.length; index += 2) {
         if (controller.signal.aborted) break;
@@ -389,7 +423,7 @@ async function handleChat(req: http.IncomingMessage, res: http.ServerResponse, i
         ...toHistory(input.history),
         { role: 'user', content: input.text },
       ];
-      await streamDeepSeek(apiKey, messages, controller.signal, (text) => sse(res, { type: 'chunk', text }));
+      await streamDeepSeek(key, messages, controller.signal, (text) => sse(res, { type: 'chunk', text }));
     }
     sse(res, { type: 'done' });
   } catch (error) {
@@ -441,13 +475,14 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   if (method === 'POST' && p === '/api/debug/propose') {
     const input = (await readBody(req)) as DebugProposeInput;
     const settings = loadSettings();
-    if (!apiKey || settings.demoMode) {
+    const key = resolveApiKey().key;
+    if (!key || settings.demoMode) {
       await delay(500);
       json(res, 200, demoProposal(input.instruction));
       return;
     }
     const raw = await completeDeepSeek(
-      apiKey,
+      key,
       [
         {
           role: 'system',
@@ -469,10 +504,11 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   if (method === 'POST' && p === '/api/debug/preview') {
     const input = (await readBody(req)) as DebugPreviewInput;
     const settings = loadSettings();
+    const key = resolveApiKey().key;
     const persona = getPersonaText().text;
     const active = activePatches();
     const samples = input.samples.map((sample) => sample.trim()).filter(Boolean).slice(0, 4);
-    if (!apiKey || settings.demoMode) {
+    if (!key || settings.demoMode) {
       json(res, 200, {
         samples: samples.map((sample) => ({
           input: sample,
@@ -485,7 +521,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     const result = { samples: [] as Array<{ input: string; before: string; after: string }> };
     for (const sample of samples) {
       const before = await completeDeepSeek(
-        apiKey,
+        key,
         [
           { role: 'system', content: buildSystemPrompt(persona, settings, active) },
           { role: 'user', content: sample },
@@ -493,7 +529,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         { maxTokens: 220, temperature: 0.6 },
       );
       const after = await completeDeepSeek(
-        apiKey,
+        key,
         [
           {
             role: 'system',

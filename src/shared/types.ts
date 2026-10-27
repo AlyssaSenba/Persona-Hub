@@ -16,6 +16,7 @@ export interface LabSettings {
 
 export interface PublicSettings extends LabSettings {
   hasApiKey: boolean;
+  keySource?: 'env' | 'memory' | 'none';
 }
 
 export interface SettingsSaveInput extends LabSettings {

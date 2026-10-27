@@ -138,15 +138,25 @@ export function SettingsModal(props: Props) {
                 type="password"
                 value={apiKeyInput}
                 onChange={(event) => props.onApiKeyChange(event.target.value)}
-                placeholder={settings.hasApiKey ? '已保存；留空不修改' : 'sk-...'}
+                placeholder={
+                  settings.keySource === 'env'
+                    ? '由 .env 提供；留空不改'
+                    : settings.hasApiKey
+                      ? '已保存；留空不修改'
+                      : 'sk-...'
+                }
                 autoComplete="off"
               />
             </label>
             <div className="inline-row">
               <span className={settings.hasApiKey ? 'ok' : 'muted'}>
-                {settings.hasApiKey ? 'Key 已保存（仅本次运行，重启需重填）' : '未配置 Key'}
+                {settings.keySource === 'env'
+                  ? 'Key 来自 .env（每次请求实时读取）'
+                  : settings.hasApiKey
+                    ? 'Key 已保存（仅本次运行，重启需重填）'
+                    : '未配置 Key'}
               </span>
-              {settings.hasApiKey ? (
+              {settings.hasApiKey && settings.keySource !== 'env' ? (
                 <button type="button" className="ghost small" onClick={props.onClearKey}>
                   清除 Key
                 </button>
@@ -161,7 +171,9 @@ export function SettingsModal(props: Props) {
               <span>演示模式（不调用真实模型）</span>
             </label>
             <p className="hint">
-              没有 Key 也能看界面；要真实调性格，关掉演示模式并填入 Key。
+              {settings.keySource === 'env'
+                ? '当前使用 .env 里的 DEEPSEEK_API_KEY；改完 .env 下一次请求立即生效，不需要重启。'
+                : '没有 Key 也能看界面；要真实调性格，关掉演示模式并填入 Key，或把它写进 .env。'}
             </p>
           </section>
 

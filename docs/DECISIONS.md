@@ -376,7 +376,7 @@
 ## D047 P0.5 改为本地 Node 服务 + 浏览器；移除 Electron，Windows 与 Linux 通用
 
 - 状态：accepted（P0.5）
-- 决定：P0.5 只提供“本地 Node 服务 + 浏览器”形态，跨 Windows / Linux；Electron 运行时、`electron-vite` 配置、主进程 / preload 代码和 `electron` 依赖已全部删除；`npm run build` 改为 Vite 构建，`npm start` 启动服务；一键脚本为 `start-persona-lab-web.cmd`（Windows）和 `start-persona-lab-web.sh`（Linux/macOS）。
+- 决定：P0.5 只提供“本地 Node 服务 + 浏览器”形态，跨 Windows / Linux；Electron 运行时、`electron-vite` 配置、主进程 / preload 代码和 `electron` 依赖已全部删除；`npm run build` 改为 Vite 构建，`npm start` 启动服务；一键脚本为 `start-persona-lab-web.cmd`（Windows）和 `start-persona-lab-web.sh`（Linux/macOS）；API Key 优先从根目录 `.env` 每次请求实时读取。
 - 理由：Windows 11 26200 上本地未签名 dev Electron 连 `--version` 都崩溃；签名 / 桌面壳兼容不适合在 P0.5 解决。浏览器版只依赖 Node 内置模块，天然跨平台。
 - 替代：继续换 Electron 版本 / 签名（成本高、不保证）；直接上 Tauri（P1 再评估）。
-- 后果：API Key 只保存在 Node 进程内存，不落盘；打开浏览器按平台选择 `cmd /c start` / `open` / `xdg-open`；服务只监听 `127.0.0.1`；最终桌面壳在 P1 决定（Tauri 或正式签名 Electron）。
+- 后果：API Key 优先从 `.env` 实时读取（`.env` 已 gitignore，`.env.example` 只含占位符），设置页填的仅保存在 Node 进程内存；打开浏览器按平台选择 `cmd /c start` / `open` / `xdg-open`；服务只监听 `127.0.0.1`；最终桌面壳在 P1 决定（Tauri 或正式签名 Electron）。
