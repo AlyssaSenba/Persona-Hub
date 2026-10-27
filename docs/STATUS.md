@@ -1,7 +1,7 @@
 # STATUS — 当前进度、下一步与交接备注
 
-> 更新时间：2026-10-27（最新改动：人设 v0.9 不每轮开话题 + 家人称呼 + 用户资料 + patch 可重新启用）
-> 分支：`main`（本地领先 `origin/main` 7 个提交，尚未 push）
+> 更新时间：2026-10-28（最新改动：人设 v0.9 不每轮开话题 + 家人称呼 + 用户资料 + patch 可重新启用）
+> 分支：`main`（本地领先 `origin/main` 15 个提交，尚未 push）
 > 当前可用形态：P0.5 Persona Lab 浏览器版（Node + Vite + React）
 
 ## 1. 已完成
@@ -55,7 +55,8 @@
 - 本地服务：`GET /api/settings` 返回 `hasApiKey=true`、`keySource=env`。
 - 真实 DeepSeek 请求：通过（通过 `.env` 读取 Key，未打印 Key）。
 - `tauri info`：WebView2 / MSVC / rustc / cargo / rustup / Rust toolchain 全部通过。
-- `git status`：本次整理前只有 `关于用户.txt` 未跟踪；已作为需求来源提交。
+- 本次接手复核：`npm run typecheck`、`npm run build` 再次通过。
+- `git status`：干净；历史上唯一的未跟踪文件 `关于用户.txt` 已作为需求来源提交。
 
 ## 2. 接下来要做的任务
 
@@ -100,7 +101,7 @@
 - **不要重新引入 Electron**：这台 Windows 11 26200 上本地未签名 dev Electron 连 `--version` 都返回 `STATUS_BREAKPOINT`；DSH 能跑是因为它是签名成品、自带运行时。最终桌面壳用 Tauri 或正式签名方案。
 - **Tauri 只装了工具链**：`tauri info` 绿不等于已有 app；需要先建 `src-tauri` 并确认构建方案。不要在没有确认前跑 `tauri build` 生成一堆构建产物。
 - **服务安全**：只监听 `127.0.0.1`，没有鉴权；不要暴露到局域网/公网。
-- **Git**：远程 SSH 22 端口当前被网络阻断；HTTPS fetch 可用。本地 `main` 领先 `origin/main` 3 个提交，未 push；不要 force push。
+- **Git**：远程 SSH 22 端口当前被网络阻断；HTTPS fetch 可用。本地 `main` 领先 `origin/main` 15 个提交，未 push；不要 force push。
 - **PATH**：Tauri CLI 在 `C:\Users\6fish\AppData\Roaming\npm\nodejs`；Cargo 在 `%USERPROFILE%\.cargo\bin`。已运行中的 DSH 终端可能不会自动刷新，新开终端生效。
 - **`.env` 优先级**：`.env` 高于设置页临时 Key；改 `.env` 后下一次请求生效，不用重启服务。
 - **P0.5 边界**：没有记忆/日程/专注/外语/咨询/游戏；不要把这些模块的未实现能力写进聊天承诺。
