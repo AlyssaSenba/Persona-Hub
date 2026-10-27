@@ -35,13 +35,13 @@ API Key 是 DeepSeek 平台发给你的一个字符串（通常以 `sk-` 开头�
 4. 进入 **API Keys**（或“密钥管理”）。
 5. 点击“创建 API Key”，复制生成的字符串（`sk-...`）。
 6. 打开应用 → 设置 → 模型 → 粘贴 Key → 保存。
-7. 应用会显示“已配置”；你只会看到后四位，不会看到明文。
+7. 应用会显示“已保存”；不会回显明文。
 
 **重要**
 
 - 不要把 Key 发在聊天里、截图里、Git 里。
 - 如果怀疑泄露：去平台撤销该 Key，再生成新的。
-- 应用用 Windows 系统凭据加密保存 Key；不会写进日志/导出。
+- Electron 版会用 Windows 系统凭据加密保存 Key；当前浏览器版只保存在本次 Node 进程内存，不落盘，重启要重填。
 - 如果你在平台上看到已有的 “DeepSeek Harness” Key：那是当前工具自己用的，**不要复用它，也不要删除它**；给 AI伙伴 新建一个专用 Key。
 
 ## 4. 没有 Key 也能用吗
@@ -123,6 +123,7 @@ http://127.0.0.1:4173
 
 ```powershell
 cd "C:\Users\6fish\Desktop\AI伙伴"
+npm.cmd run build:web
 npm.cmd run web
 ```
 

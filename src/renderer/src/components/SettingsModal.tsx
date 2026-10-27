@@ -145,9 +145,7 @@ export function SettingsModal(props: Props) {
             </label>
             <div className="inline-row">
               <span className={settings.hasApiKey ? 'ok' : 'muted'}>
-                {settings.hasApiKey
-                  ? 'Key 已保存（Electron 加密；浏览器版仅本次运行）'
-                  : '未配置 Key'}
+                {settings.hasApiKey ? 'Key 已保存（仅本次运行，重启需重填）' : '未配置 Key'}
               </span>
               {settings.hasApiKey ? (
                 <button type="button" className="ghost small" onClick={props.onClearKey}>

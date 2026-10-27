@@ -81,7 +81,7 @@ http://127.0.0.1:4173
 | 关系/内容 | 当前人设关系为情侣（可改）；恋爱/暧昧/更亲密可以；不直接描写性行为；首次启动 18+ 确认 |
 | 模型 | DeepSeek `deepseek-flash`；聊天默认不深度思考，high 手动开；背景任务可单独高 |
 | 记忆 | Markdown 真相源 + SQLite 索引；自动写入 + 收件箱；心理咨询敏感内容不主动提 |
-| 数据 | 工作区 `data/`、`memory/`、`config/`、`backups/`；私密内容不进 Git；API Key 加密 |
+| 数据 | 工作区 `data/`、`memory/`、`config/`、`backups/`；私密内容不进 Git；浏览器版 API Key 仅内存 |
 | 成本 | 每日上限 ¥2；先充 ¥20 试水 |
 | 提醒 | 托盘常驻 + 开机自启 + Windows 通知；免打扰时闲聊静默，硬提醒仍响 |
 | 主动 | 频率可选：1–2 次/天、2–3 次/天、60–90 分钟、约 30 分钟、自定义；默认 2–3 次/天，带安静时段/降频 |
@@ -113,7 +113,7 @@ http://127.0.0.1:4173
 C:\Users\6fish\Desktop\AI伙伴\
   data/          结构化数据（SQLite）
   memory/        长期记忆（Markdown，可直接看/改）
-  config/        配置与加密后的 API Key
+  config/        配置（浏览器版 API Key 不落盘）
   backups/       每日自动快照与手动导出
   docs/          文档
   persona.md     初版人设（可改；应用读取它作为 core_persona）
