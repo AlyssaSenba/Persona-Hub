@@ -7,9 +7,11 @@ if not exist "node_modules" (
   if errorlevel 1 goto :error
 )
 
-echo Building the web UI...
-call npm.cmd run build
-if errorlevel 1 goto :error
+if not exist "out\renderer\index.html" (
+  echo Web UI build is missing.
+  echo Please tell the assistant to rebuild the web UI.
+  goto :error
+)
 
 echo Starting Persona Lab (web)...
 echo Keep this window open while you use it.

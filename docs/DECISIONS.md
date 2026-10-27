@@ -373,10 +373,10 @@
 - 替代：一上来做字段级 diff（更精确，但工程量大）。
 - 后果：P0.5 能调语气/称呼/情绪强度，但不能精确改单个参数；P1 再升级。
 
-## D047 P0.5 双运行模式：浏览器优先
+## D047 P0.5 改为浏览器版；Electron 运行时移除
 
 - 状态：accepted（P0.5）
-- 决定：P0.5 同时提供浏览器版（Node + Edge，`start-persona-lab-web.cmd`）和 Electron 版（`start-persona-lab.cmd`）；当前 Windows 11 26200 上未签名 dev Electron 启动崩溃，浏览器版优先。
-- 理由：先让用户能用起来调人设；DSH 能跑是因为它是签名、打包好的 Electron 成品，自带运行时，和本地未签名 dev 二进制不是一回事。签名/桌面壳兼容不适合在 P0.5 解决。
+- 决定：P0.5 只提供浏览器版（Node + Edge，`start-persona-lab-web.cmd`）；Electron 运行时和缓存已按用户要求删除，`start-persona-lab.cmd` / `npm.cmd run dev` 不再可用。
+- 理由：Windows 11 26200 上本地未签名 dev Electron 连 `--version` 都崩溃；DSH 是签名、打包好的成品，自带运行时，不能直接类比。签名/桌面壳兼容不适合在 P0.5 解决。
 - 替代：继续换 Electron 版本/签名（成本高、不保证）；直接上 Tauri（P1 再评估）。
-- 后果：浏览器版 API Key 只保存在 Node 进程内存，不落盘；最终桌面壳在 P1 决定（Tauri 或正式签名 Electron）。
+- 后果：浏览器版 API Key 只保存在 Node 进程内存，不落盘；`npm.cmd run build` 依赖 electron-vite/electron，当前不可用，但现有 `out/renderer` 可运行；最终桌面壳在 P1 决定（Tauri 或正式签名 Electron）。

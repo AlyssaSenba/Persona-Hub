@@ -123,7 +123,6 @@ http://127.0.0.1:4173
 
 ```powershell
 cd "C:\Users\6fish\Desktop\AI伙伴"
-npm.cmd run build
 npm.cmd run web
 ```
 
@@ -133,14 +132,9 @@ npm.cmd run web
 - API Key 只保存在本次 Node 进程内存里，**不落盘**；重启服务要重填。
 - 关闭那个黑色命令行窗口 = 关闭服务。
 
-### 8.2 Electron 版（当前 Windows 11 26200 会崩）
+### 8.2 Electron 版（已删除）
 
-```powershell
-cd "C:\Users\6fish\Desktop\AI伙伴"
-npm.cmd run dev
-```
-
-> 当前机器上 Electron 连 `--version` 都会 `STATUS_BREAKPOINT`（`-2147483645`）。DSH 能跑是因为它是**签名、打包好的 Electron 成品**，自带运行时；我们用的是本地**未签名 dev 版 Electron**。先用浏览器版，最终 app 再选 Tauri 或正式签名的桌面壳。
+> Electron 运行时和缓存已按你的要求删除；`npm.cmd run dev` 不再可用。当前机器上 Electron 连 `--version` 都会 `STATUS_BREAKPOINT`（`-2147483645`）；DSH 能跑是因为它是**签名、打包好的 Electron 成品**，自带运行时，和本地未签名 dev 版不是一回事。
 
 ### 8.3 首次运行设置
 
