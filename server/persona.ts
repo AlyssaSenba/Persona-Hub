@@ -101,12 +101,19 @@ export function fillPersona(personaText: string, settings: LabSettings): string 
     .replaceAll('{{RELATIONSHIP}}', RELATIONSHIP_LABEL[settings.relationship]);
 }
 
+/** 版本记录是给人看的，不进提示词，避免模型复述内部机制。 */
+function stripMetaSections(text: string): string {
+  const index = text.search(/\r?\n##\s*18\.\s*版本/);
+  return index >= 0 ? text.slice(0, index) : text;
+}
+
 export function buildSystemPrompt(
   personaText: string,
   settings: LabSettings,
   patches: PersonaPatch[],
+  topicHint?: string,
 ): string {
-  const persona = fillPersona(personaText, settings);
+  const persona = fillPersona(stripMetaSections(personaText), settings);
   const relationship = RELATIONSHIP_LABEL[settings.relationship];
   const nicknameLine = settings.aiNickname
     ? `用户可能叫你“${settings.aiNickname}”；这是昵称，不是另一个人。`
@@ -146,8 +153,14 @@ export function buildSystemPrompt(
     '- 句子要成句、虚词不省（“按你的名字叫”不是“按你名字叫”）；发出去前默读一遍，宁可短，不要病句。',
     '- 疑问句用“？”，陈述句用“。”；想不那么像追问就改成陈述句，不要“问句＋句号”。',
     '- 被问到自己刚才为什么那样说时，不确定就说“没注意/写漏了”，不要编“我故意的”这类动机。',
-    '- 用户让你挑话题时别只用一种开场：给内容、问日常、问心情都行，同一种别连着用两次。',
+    '- 用户让你挑话题时随机挑一种方向（想法/日常/心情/假设），别固定轮换，也别先宣布“换个方向”。',
     '',
+    ...(topicHint
+      ? [
+          `【本轮倾向】如果用户让你挑话题，优先用这种方式：${topicHint}。不要说明这是随机或“换方向”。`,
+          '',
+        ]
+      : []),
     patchBlock(patches),
     '',
     '【Persona Lab 限制】',

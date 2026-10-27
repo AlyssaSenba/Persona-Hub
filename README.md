@@ -91,7 +91,7 @@ Windows PowerShell 里把 `npm` 换成 `npm.cmd`。可用环境变量 `PORT`（�
 | 使用范围 | 只给自己用；Windows + Linux |
 | 形态 | 普通窗口 + 可收起侧边栏；纯文字 + 暖色房间/夜灯/纸质氛围；不做立绘/桌宠/语音 |
 | 伙伴数量 | 单伙伴；数据结构预留多角色 |
-| 人设 | `persona.md` v0.7（男/成熟/冷静/高智/外冷内热/21–27/情侣）；语气规则已合并，毒舌默认关闭，句子须完整、问句带问号、挑话题类型要轮换 |
+| 人设 | `persona.md` v0.8（男/成熟/冷静/高智/外冷内热/21–27/情侣）；语气规则已合并，毒舌默认关闭，句子须完整、问句带问号、挑话题随机选方向 |
 | 称呼 | 名字在应用内设置；可选 AI 昵称；用户可设名字/昵称/“你/您” |
 | 关系/内容 | 当前人设关系为情侣（可改）；恋爱/暧昧/更亲密可以；不直接描写性行为；首次启动 18+ 确认 |
 | 模型 | DeepSeek `deepseek-flash`；聊天默认不深度思考，high 手动开；背景任务可单独高 |
@@ -162,7 +162,7 @@ DeepSeek Flash 很便宜；按正常使用（每天 20–50 轮），约 **¥0.2
 | [`docs/SECURITY.md`](docs/SECURITY.md) | 威胁模型、权限、prompt injection、密钥、隐私 |
 | [`docs/CONTENT_POLICY.md`](docs/CONTENT_POLICY.md) | AI 身份、亲密边界、危机协议、依赖防护 |
 | [`docs/COST.md`](docs/COST.md) | 价格、场景估算、预算、降级策略 |
-| [`persona.md`](persona.md) | 人设 v0.7（男/成熟/冷静/高智/外冷内热/21–27/情侣），4 个调试 patch 已合并，并补语句完整性、标点与“挑话题类型轮换” |
+| [`persona.md`](persona.md) | 人设 v0.8（男/成熟/冷静/高智/外冷内热/21–27/情侣），4 个调试 patch 已合并，并补语句完整性、标点与“挑话题随机选方向” |
 | [`docs/PERSONA_TEMPLATE.md`](docs/PERSONA_TEMPLATE.md) | 人设模板（用于后续补充/改版） |
 | [`docs/QUICK_START.md`](docs/QUICK_START.md) | 小白术语、API Key 教程、运行方式、FAQ |
 | [`docs/STATUS.md`](docs/STATUS.md) | 当前进度、下一步、交接备注 |
