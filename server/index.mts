@@ -48,7 +48,7 @@ const controllers = new Map<string, AbortController>();
 function readEnvApiKey(): string | null {
   try {
     if (!fs.existsSync(ENV_FILE)) return null;
-    const text = fs.readFileSync(ENV_FILE, 'utf8');
+    const text = fs.readFileSync(ENV_FILE, 'utf8').replace(/^\uFEFF/, '');
     for (const line of text.split(/\r?\n/)) {
       const match = line.match(/^\s*(?:export\s+)?DEEPSEEK_API_KEY\s*=\s*(.*)\s*$/);
       if (!match) continue;
