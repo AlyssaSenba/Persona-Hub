@@ -5,21 +5,21 @@
 
 ---
 
-## D001 只给自己用，Windows 优先
+## D001 只给自己用，Windows + Linux
 
-- 状态：accepted
-- 决定：首版单用户、Windows；不做账号/云/商业化。
+- 状态：accepted（已修订：原为“Windows 优先”）
+- 决定：首版单用户；Windows 与 Linux 都要能运行；不做账号/云/商业化。
 - 理由：最快落地；避免合规、分发、多端同步的复杂度。
 - 替代：给朋友用/开源/商业化（暂不考虑）。
 - 后果：安装包、隐私说明、内容分级可以后补；架构不为此过度设计。
 
-## D002 Electron + React + TypeScript
+## D002 React + TypeScript 前端；桌面壳待定
 
-- 状态：accepted
-- 决定：Electron 桌面壳，React + TS 前端。
-- 理由：生态成熟、Node API 直接可用、资料多、适合 vibe coding；Windows 通知/托盘/文件都成熟。
-- 替代：Tauri（更轻但 Rust 门槛/生态小）；本地 Web（无托盘/通知/文件）。
-- 后果：安装包大、内存高；可接受。
+- 状态：accepted（已修订：原为“Electron + React + TypeScript”，壳的选择被 D047 撤回）
+- 决定：前端用 React + TS；桌面壳（Tauri / 正式签名 Electron / 其他）在 P1 评估后再定；P0.5 是本地 Node 服务 + 浏览器。
+- 理由：前端与壳解耦，壳的选择不阻塞人设调试。
+- 替代：直接定 Electron 或 Tauri（D047 的启动崩溃说明需要先验证）。
+- 后果：托盘 / 自启 / 系统通知等能力要等壳确定后实现，且需分别适配 Windows 与 Linux。
 
 ## D003 单伙伴，数据结构预留多角色
 
@@ -104,10 +104,10 @@
 ## D013 API Key 用系统凭据加密
 
 - 状态：accepted
-- 决定：Electron `safeStorage`（Windows DPAPI）；渲染进程只见“已配置/后四位”。
+- 决定：P0.5 只存 Node 进程内存，不落盘；需要持久化时（P1+）用系统凭据库（Windows 凭据管理器 / Linux libsecret），无可用凭据库则回退为仅内存；前端只见“已配置”。
 - 理由：不把 Key 放明文/日志/Git。
-- 替代：明文配置文件（不安全）；系统钥匙串库（额外依赖）。
-- 后果：换 Windows 用户/重装可能需重填。
+- 替代：明文配置文件（不安全）。
+- 后果：P0.5 每次重启服务要重填；换系统用户 / 重装后持久化的 Key 可能需重填。
 
 ## D014 预算 ¥2/天，先充 ¥20
 
@@ -125,10 +125,10 @@
 - 替代：固定 1 次/天（太冷）；无上限（骚扰/成本）。
 - 后果：需要频率设置/节流/安静时段/DND 解析/通知分级/成本记录。
 
-## D016 提醒：托盘 + 开机自启 + Windows 通知
+## D016 提醒：托盘 + 开机自启 + 系统通知
 
-- 状态：accepted
-- 决定：托盘常驻、开机自启、Windows toast；关闭窗口不退出（可设置）。
+- 状态：accepted（P1 实现，依赖桌面壳选择）
+- 决定：托盘常驻、开机自启、系统通知（Windows toast / Linux 桌面通知）；关闭窗口不退出（可设置）。
 - 理由：关掉窗口也能提醒；日程可靠。
 - 替代：仅运行时（会漏）；任务计划（复杂）。
 - 后果：常驻后台；需要单实例/托盘菜单/通知权限。
@@ -225,7 +225,7 @@
 
 - 状态：accepted
 - 决定：桌面应用，不容器化。
-- 理由：Electron GUI/通知/托盘不适合 Docker；自用无部署需求。
+- 理由：桌面 GUI/通知/托盘不适合 Docker；自用无部署需求。
 - 替代：若未来有同步服务端，可单独容器化。
 - 后果：AGENTS.md 的 Docker 阅读要求暂不适用。
 
@@ -360,10 +360,10 @@
 ## D045 P0.5 独立人设调试器
 
 - 状态：accepted
-- 决定：先交付 Electron Persona Lab：聊天 + 设置 + 安全词/快捷键 + patch 生成/预览/应用/回滚；不含记忆/日程/专注；代码在 `src/`，复用为 P1 的壳。
-- 理由：先调顺人设，避免完整模块返工；同时验证 Electron、DeepSeek 流式、安全词与 patch 流程。
-- 替代：直接做 P1（人设没调顺，返工风险高）；纯网页（不可复用桌面壳）。
-- 后果：P0.5 使用 Electron 44 + React 19 + Vite 8；API Key 用 `safeStorage`；patch 存 `config/persona-patches/`。
+- 决定：先交付 Persona Lab：聊天 + 设置 + 安全词/快捷键 + patch 生成/预览/应用/回滚；不含记忆/日程/专注；前端在 `src/`，复用为 P1 的界面。
+- 理由：先调顺人设，避免完整模块返工；同时验证 DeepSeek 流式、安全词与 patch 流程。
+- 替代：直接做 P1（人设没调顺，返工风险高）。
+- 后果：形态已由 D047 改为浏览器版；技术栈为 React 19 + Vite 8 + Node 服务；patch 存 `config/persona-patches/`。
 
 ## D046 P0.5 的 patch 采用简化规则叠加
 
@@ -373,10 +373,10 @@
 - 替代：一上来做字段级 diff（更精确，但工程量大）。
 - 后果：P0.5 能调语气/称呼/情绪强度，但不能精确改单个参数；P1 再升级。
 
-## D047 P0.5 改为浏览器版；Electron 运行时移除
+## D047 P0.5 改为本地 Node 服务 + 浏览器；移除 Electron，Windows 与 Linux 通用
 
 - 状态：accepted（P0.5）
-- 决定：P0.5 只提供浏览器版（Node + Edge，`start-persona-lab-web.cmd`）；Electron 运行时和缓存已按用户要求删除，`start-persona-lab.cmd` / `npm.cmd run dev` 不再可用。
-- 理由：Windows 11 26200 上本地未签名 dev Electron 连 `--version` 都崩溃；DSH 是签名、打包好的成品，自带运行时，不能直接类比。签名/桌面壳兼容不适合在 P0.5 解决。
-- 替代：继续换 Electron 版本/签名（成本高、不保证）；直接上 Tauri（P1 再评估）。
-- 后果：浏览器版 API Key 只保存在 Node 进程内存，不落盘；`npm.cmd run build` 依赖 electron-vite/electron，当前不可用，但现有 `out/renderer` 可运行；最终桌面壳在 P1 决定（Tauri 或正式签名 Electron）。
+- 决定：P0.5 只提供“本地 Node 服务 + 浏览器”形态，跨 Windows / Linux；Electron 运行时、`electron-vite` 配置、主进程 / preload 代码和 `electron` 依赖已全部删除；`npm run build` 改为 Vite 构建，`npm start` 启动服务；一键脚本为 `start-persona-lab-web.cmd`（Windows）和 `start-persona-lab-web.sh`（Linux/macOS）。
+- 理由：Windows 11 26200 上本地未签名 dev Electron 连 `--version` 都崩溃；签名 / 桌面壳兼容不适合在 P0.5 解决。浏览器版只依赖 Node 内置模块，天然跨平台。
+- 替代：继续换 Electron 版本 / 签名（成本高、不保证）；直接上 Tauri（P1 再评估）。
+- 后果：API Key 只保存在 Node 进程内存，不落盘；打开浏览器按平台选择 `cmd /c start` / `open` / `xdg-open`；服务只监听 `127.0.0.1`；最终桌面壳在 P1 决定（Tauri 或正式签名 Electron）。

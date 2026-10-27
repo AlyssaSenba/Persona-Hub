@@ -6,7 +6,7 @@
 
 **P0.5 人设调试器已实现；完整 app 仍在设计阶段。**
 
-- 已实现：Node + Edge（浏览器版）的独立人设调试器（聊天、设置、安全词、patch 预览/回滚）。Electron 运行时已移除。
+- 已实现：本地 Node 服务 + 浏览器界面的独立人设调试器（聊天、设置、安全词、patch 预览/回滚），Windows / Linux 通用。
 - 未实现：记忆、日程、专注、外语、心理、游戏等完整模块。
 - 文档：PRD、架构、记忆、安全、内容政策、成本、决策、调研都已定稿到当前版本。
 
@@ -16,21 +16,33 @@
 
 ## P0.5 快速运行
 
-### 浏览器版（推荐，当前可用）
+需要 Node.js ≥ 22 和 npm，以及一个现代浏览器。
 
-**双击根目录的 [`start-persona-lab-web.cmd`](start-persona-lab-web.cmd)。** 它会启动本地 Node 服务，并打开：
+### 一键启动
+
+- **Windows**：双击 [`start-persona-lab-web.cmd`](start-persona-lab-web.cmd)。
+- **Linux / macOS**：运行 `./start-persona-lab-web.sh`。
+
+脚本会按需安装依赖、构建前端、启动本地服务并打开：
 
 ```text
 http://127.0.0.1:4173
 ```
 
-- 不需要 Electron；Node 做后台，Edge 做界面。
-- API Key 只保存在本次 Node 进程内存，**不落盘**；重启服务要重填。
-- 关闭那个黑色命令行窗口 = 关闭服务。
+### 手动启动
 
-### Electron 版（已删除）
+```bash
+npm install
+npm run build
+npm start          # 没有图形界面时手动访问上面的地址
+```
 
-> Electron 运行时和缓存已按你的要求删除；`npm.cmd run dev` 不再可用。当前机器上 Electron 连 `--version` 都会 `STATUS_BREAKPOINT`（`-2147483645`）；DSH 能跑是因为它是**签名、打包好的 Electron 成品**，自带运行时，和本地未签名 dev 版不是一回事。
+Windows PowerShell 里把 `npm` 换成 `npm.cmd`。可用环境变量 `PORT`（默认 4173）改端口，`NO_OPEN=1` 不自动打开浏览器。
+
+- 服务只监听 `127.0.0.1`，没有鉴权，不要暴露到局域网 / 公网。
+- API Key 只保存在 Node 进程内存，**不落盘**；重启服务要重填。
+- 关闭命令行窗口（或 `Ctrl+C`）= 关闭服务。
+- 其他脚本：`npm run typecheck` 做类型检查。
 
 ### 首次设置
 
@@ -73,7 +85,7 @@ http://127.0.0.1:4173
 
 | 维度 | 决策 |
 |---|---|
-| 使用范围 | 只给自己用；Windows 优先 |
+| 使用范围 | 只给自己用；Windows + Linux |
 | 形态 | 普通窗口 + 可收起侧边栏；纯文字 + 暖色房间/夜灯/纸质氛围；不做立绘/桌宠/语音 |
 | 伙伴数量 | 单伙伴；数据结构预留多角色 |
 | 人设 | `persona.md` v0.2 已起草（男/成熟/冷静/高智/外冷内热/21–27/情侣），待你确认/修改 |
@@ -81,9 +93,9 @@ http://127.0.0.1:4173
 | 关系/内容 | 当前人设关系为情侣（可改）；恋爱/暧昧/更亲密可以；不直接描写性行为；首次启动 18+ 确认 |
 | 模型 | DeepSeek `deepseek-flash`；聊天默认不深度思考，high 手动开；背景任务可单独高 |
 | 记忆 | Markdown 真相源 + SQLite 索引；自动写入 + 收件箱；心理咨询敏感内容不主动提 |
-| 数据 | 工作区 `data/`、`memory/`、`config/`、`backups/`；私密内容不进 Git；浏览器版 API Key 仅内存 |
+| 数据 | 工作区 `data/`、`memory/`、`config/`、`backups/`；私密内容不进 Git；API Key 目前仅内存 |
 | 成本 | 每日上限 ¥2；先充 ¥20 试水 |
-| 提醒 | 托盘常驻 + 开机自启 + Windows 通知；免打扰时闲聊静默，硬提醒仍响 |
+| 提醒 | 托盘常驻 + 开机自启 + 系统通知（P1，随桌面壳实现）；免打扰时闲聊静默，硬提醒仍响 |
 | 主动 | 频率可选：1–2 次/天、2–3 次/天、60–90 分钟、约 30 分钟、自定义；默认 2–3 次/天，带安静时段/降频 |
 | 调试 | 安全词/快捷键打开；自然语言 → patch → 预览 → 应用/回滚；不能关闭安全边界 |
 | 咨询 | CBT / ACT / 人本 / 正念 / 混合；不诊断、不替代专业帮助；危机 0–3 级；中国大陆 12356 |
@@ -92,35 +104,41 @@ http://127.0.0.1:4173
 
 完整决策见 [`docs/DECISIONS.md`](docs/DECISIONS.md)。
 
-## 计划中的技术栈
+## 技术栈
 
-- **桌面**：Electron + React + TypeScript
-- **构建**：electron-vite + electron-builder
-- **UI**：Tailwind CSS + shadcn/ui + Motion
-- **状态**：Zustand（本地 UI 状态）+ 主进程服务（业务状态）
-- **数据**：Markdown（记忆真相源）+ SQLite（结构化数据与索引）
-- **模型**：DeepSeek `deepseek-flash`（OpenAI 兼容接口；思考模式、工具调用、视觉、搜索）
-- **编排**：Vercel AI SDK + 自建 DeepSeek 适配层（处理 `reasoning_content` 与工具调用的兼容性）
-- **校验**：Zod（IPC、工具参数、外部数据）
+**当前已实现（P0.5）**
 
-> 技术栈是计划，不是既成事实；真正搭骨架时会先做最小验证（SQLite 原生/WASM 方案、思考模式 + 工具调用、Windows 通知）。本机环境与需要下载什么，见 [`docs/ARCHITECTURE.md` 2.1](docs/ARCHITECTURE.md)。
+- **前端**：React 19 + TypeScript + Vite 8，手写 CSS
+- **后端**：Node ≥ 22 内置 `node:http`，无框架、无原生依赖；直接运行 `.mts`
+- **模型**：DeepSeek `deepseek-flash`（OpenAI 兼容接口，流式 SSE）
+- **平台**：Windows、Linux（macOS 理论可用，未验证）
+
+**计划（P1+，均未锁定，搭骨架前先做最小验证）**
+
+- 桌面壳：Tauri 或正式签名 Electron（托盘、自启、系统通知）
+- 数据：Markdown（记忆真相源）+ SQLite（结构化数据与索引，驱动待验证）
+- UI：Tailwind CSS + shadcn/ui + Motion；状态：Zustand
+- 编排：Vercel AI SDK + 自建 DeepSeek 适配层
+- 校验：Zod
+
+详见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
 
 ## 数据放在哪
 
-所有运行数据默认放在工作区：
+运行数据放在项目根目录（启动服务时的工作目录）：
 
 ```text
-C:\Users\6fish\Desktop\AI伙伴\
-  data/          结构化数据（SQLite）
-  memory/        长期记忆（Markdown，可直接看/改）
-  config/        配置（浏览器版 API Key 不落盘）
-  backups/       每日自动快照与手动导出
+Persona-Hub/
+  config/        运行时配置（当前：web-settings.json、persona-patches/；API Key 不落盘）
+  persona.md     人设（只读；应用读取它作为核心人设）
   docs/          文档
-  persona.md     初版人设（可改；应用读取它作为 core_persona）
-  src/           代码（后续）
+  server/        Node 服务
+  src/           前端与共享类型
+  out/           构建产物
 ```
 
-`data/`、`memory/`、`config/`、`backups/` 已在 `.gitignore` 中排除，避免隐私进入 Git。
+P1+ 计划再增加 `data/`（SQLite）、`memory/`（Markdown 长期记忆）、`backups/`。
+`config/`、`data/`、`memory/`、`backups/`、`out/` 已在 `.gitignore` 中排除，避免隐私进入 Git。
 
 ## 成本
 
@@ -133,8 +151,8 @@ DeepSeek Flash 很便宜；按正常使用（每天 20–50 轮），约 **¥0.2
 | 文档 | 内容 |
 |---|---|
 | [`docs/PRD.md`](docs/PRD.md) | 产品需求、模块功能、验收标准、路线图 |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 进程模型、数据层、记忆、Agent 编排、工具、安全 |
-| [`docs/API.md`](docs/API.md) | IPC 通道、工具契约、错误码、版本约定 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 当前实现架构；规划中的数据层、记忆、Agent 编排、工具 |
+| [`docs/API.md`](docs/API.md) | 当前本地 HTTP 接口；规划中的工具契约、错误码 |
 | [`docs/MEMORY.md`](docs/MEMORY.md) | 记忆分层、写入、召回、冲突、删除、评测 |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | 威胁模型、权限、prompt injection、密钥、隐私 |
 | [`docs/CONTENT_POLICY.md`](docs/CONTENT_POLICY.md) | AI 身份、亲密边界、危机协议、依赖防护 |
@@ -148,14 +166,14 @@ DeepSeek Flash 很便宜；按正常使用（每天 20–50 轮），约 **¥0.2
 ## 路线图
 
 - **P0 设计定稿（当前）**：PRD、架构、数据模型、记忆策略、安全与内容边界。
-- **P0.5 人设调试器（已实现，待你本机验证）**：先单独调性格，不含完整模块；调顺后再进 P1。
+- **P0.5 人设调试器（已实现）**：先单独调性格，不含完整模块；调顺后再进 P1。
 - **P1 可运行垂直切片**：首次引导 + 聊天 + 记忆文件夹/记忆浏览器 + 专注计时 + 简单日程提醒。
 - **P2 学习与规划**：外语练习、技能学习、更完整的日程与条件任务。
 - **P3 深度模块**：心理咨询、小游戏、桌宠/立绘、语音、环境音等。
 
 ## 给第一次接触这个项目的人
 
-- 不需要游戏引擎（Unity/Unreal）；这是一个桌面应用。
+- 不需要游戏引擎（Unity/Unreal）；当前是本地 Node 服务 + 浏览器，之后会做成桌面应用。
 - 不需要一上来上 LangChain/LangGraph；“智能体”本质是“模型 → 工具调用 → 应用执行 → 结果回传”的循环。
 - 不需要先学完所有技术；按 [`docs/QUICK_START.md`](docs/QUICK_START.md) 的术语表开始即可。
 

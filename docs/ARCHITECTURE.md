@@ -1,258 +1,116 @@
 # ARCHITECTURE — AI伙伴
 
-## 1. 总览
+> 本文分两部分：**第一部分是当前已实现的 P0.5 人设调试器（以源码为准）**；**第二部分是 P1 及以后的规划设计（尚未实现）**。桌面壳（Tauri / 正式签名 Electron / 其他）尚未决定，见 [DECISIONS](DECISIONS.md) D047。
+
+# 第一部分：当前实现（P0.5 人设调试器）
+
+## A1. 总览
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│ Renderer (React + TypeScript)                                │
-│  聊天 / 专注 / 外语 / 日程 / 咨询 / 技能 / 游戏 / 记忆 / 设置 │
-└───────────────▲──────────────────────────────┬───────────────┘
-                │ typed IPC (preload allowlist) │
-┌───────────────┴──────────────────────────────▼───────────────┐
-│ Main process (Electron + Node)                                │
-│  Agent Orchestrator ── DeepSeek adapter ── tools              │
-│  Memory service ── Markdown + SQLite index                   │
-│  Schedule / Focus / Language / Counseling / Skills / Games    │
-│  Event bus ── Action ledger ── Scheduler ── Tray/Notifications│
-│  Security (path guard, confirmations, prompt-injection guard)│
-└───────────────┬──────────────────────────────┬───────────────┘
-                │                              │
-        ┌───────▼────────┐            ┌────────▼────────┐
-        │ Markdown memory│            │ SQLite (data)   │
-        │ (source truth) │            │ (index/state)   │
-        └────────────────┘            └─────────────────┘
+┌──────────────────────────────────────────────┐
+│ 浏览器（任意现代浏览器：Edge / Chrome / Firefox）│
+│  React 19 + TypeScript，src/renderer          │
+│  window.lab = createWebLab()（fetch + SSE）   │
+└───────────────▲──────────────────────────────┘
+                │ HTTP（仅 127.0.0.1:4173）
+┌───────────────┴──────────────────────────────┐
+│ Node 服务 server/index.mts（无框架，node:http） │
+│  /api/*  设置 · 聊天(SSE) · 调试 patch         │
+│  静态托管 out/renderer                         │
+│  server/persona.ts  提示词组装                 │
+│  DeepSeek 调用（fetch，流式 / 非流式）          │
+└───────────────┬──────────────────────────────┘
+                │
+        persona.md（只读） · config/（运行时，已忽略）
 ```
 
-**一句话**：渲染进程只做 UI；所有模型调用、文件访问、数据库、计时器、通知都在主进程；通过受限的 preload IPC 暴露给 UI。
+**一句话**：浏览器只做 UI；模型调用、文件读写、API Key 都在本地 Node 服务里；服务只监听回环地址。
 
-**为什么不是 Tauri**：Electron 生态成熟、Node API 直接可用、对 vibe coding 更友好；代价是包大、内存高。本项目是 Windows 单机自用，优先开发效率。
+## A2. 技术栈与平台
 
-**为什么不是本地 Web**：需要托盘、开机自启、Windows 通知、本地文件、单实例；浏览器做不到。
+| 层 | 选型 |
+|---|---|
+| 前端 | React 19 + TypeScript，手写 CSS（`src/renderer/src/styles.css`） |
+| 构建 | Vite 8（`vite.config.mts`，输出 `out/renderer`） |
+| 服务 | Node ≥ 22，`node --experimental-strip-types` 直接运行 `.mts`，无打包、无 Web 框架 |
+| 模型 | DeepSeek `deepseek-flash`，非思考模式，OpenAI 兼容 `chat/completions` |
+| 校验 | 暂无（P1 引入 Zod） |
+| 类型检查 | `tsc --noEmit`（`npm run typecheck`） |
 
----
+平台：**Windows 与 Linux 均可运行**（macOS 理论可用，未验证）。只用 Node 内置模块；无原生依赖，不需要编译工具链。
 
-## 2. 技术栈
+| 脚本 | 作用 |
+|---|---|
+| `npm run build` | `vite build`，生成 `out/renderer` |
+| `npm start` | 启动 Node 服务并自动打开浏览器 |
+| `npm run typecheck` | TypeScript 类型检查 |
+| `start-persona-lab-web.cmd` | Windows 一键：装依赖 → 构建 → 启动 |
+| `start-persona-lab-web.sh` | Linux/macOS 一键：同上 |
 
-| 层 | 选型 | 理由 |
-|---|---|---|
-| 桌面壳 | Electron | 成熟、Node 生态、Windows 通知/托盘/文件 |
-| 前端 | React + TypeScript | 生态、可维护、AI 生成代码质量高 |
-| 构建 | electron-vite | 主/预加载/渲染三端一体，HMR |
-| 打包 | electron-builder | Windows 便携版/安装包 |
-| UI | Tailwind CSS + shadcn/ui | 快速、可控、无重型组件库 |
-| 动画 | Motion | 氛围/过渡；支持 reduced-motion |
-| 状态 | Zustand | 轻量 UI 状态；业务状态在主进程 |
-| 数据 | better-sqlite3 + 原生 SQL | 同步、快、FTS5；避免 ORM 抽象 |
-| 记忆 | Markdown + SQLite FTS5 | 人可读可改；检索快 |
-| 校验 | Zod | IPC/工具/外部数据统一校验 |
-| 模型 | DeepSeek `deepseek-flash` | 1M 上下文、工具、视觉、搜索、便宜 |
-| 编排 | Vercel AI SDK + 自定义 DeepSeek 适配层 | 流式/工具生态；适配 `reasoning_content` |
-| 测试 | Vitest + Playwright | 单元/集成/E2E |
+环境变量：`PORT`（默认 `4173`）、`NO_OPEN=1`（不自动打开浏览器；自动打开在 Windows 用 `cmd /c start`、macOS 用 `open`、Linux 用 `xdg-open`，失败只打印网址）。
 
-### 2.1 本机环境与安装清单
-
-**当前机器（2026-10 检查）**
-
-| 项 | 状态 | 说明 |
-|---|---|---|
-| Windows | Windows 11 (10.0.26200) | 目标平台 |
-| Node.js | 24.21.0 已装 | 运行主进程/构建 |
-| npm | 11.19.0 已装 | 随 Node 自带；**PowerShell 禁止 `npm.ps1`，请用 `npm.cmd`** |
-| Git | 2.56.0 已装 | 版本管理 |
-| pnpm | 未装 | 不需要；本项目用 npm |
-| Python | 只有 Microsoft Store 别名 | 不是可用 Python；暂不需要 |
-| Visual Studio Build Tools / MSVC | 未装 | 只在原生模块没有预编译包时需要 |
-| VS Code | 未装 | 可选；方便看/改代码 |
-| Docker / Rust / Unity | 未装 | 不需要 |
-
-**需要下载/安装的**
-
-- **现在：不需要额外下载**（除了可选的 VS Code）。
-- 第一次 `npm install` 会自动下载 Electron/React/Vite/TypeScript 等（约几百 MB）；不需要手动装“引擎”。
-- DeepSeek API Key：不是下载，去 `platform.deepseek.com` 创建；没有也能演示模式。
-- 如果 `better-sqlite3` 没有可用的 Electron 预编译包：再装 Python 3.11+ 和 Visual Studio Build Tools（Desktop development with C++）；或者改用纯 JS/WASM SQLite（`sql.js` / `node:sqlite`，需验证）避免大安装。搭骨架时先验证，不先让你装。
-- 打包时 `electron-builder` 会自动下载 NSIS 等工具；不需要手动。
-- 网络：npm/Electron 二进制需要网络；代理按系统设置。
-
-**明确不需要**
-
-- 游戏引擎（Unity/Unreal）、Docker、Rust、Tauri、本地大模型、OCR/TTS 服务、移动端 SDK、pnpm。
-
-**版本策略**
-
-- Node：24.x。
-- 包管理器：`npm`（用 `npm.cmd` 规避 PowerShell 脚本限制）。
-- Electron/React 版本在搭骨架时锁定到当时稳定版；不追最新。
-- TypeScript `strict: true`；外部数据用 `unknown` + Zod，禁止 `any` 泛滥。
-
-### 2.2 明确不引入
-
-- 不引入 LangChain/LangGraph/Mastra（首版）。
-- 不引入 Redux、React Query（首版状态简单）。
-- 不引入 Docker（项目为桌面应用）。
-- 不引入本地大模型（首版用 DeepSeek 云端）。
-
----
-
-## 3. 进程模型
-
-### 3.1 Main
-
-职责：
-
-- 窗口/托盘/单实例/开机自启。
-- 所有网络请求（模型、搜索）。
-- 所有文件读写（数据根目录、用户选择的导入文件）。
-- SQLite、Markdown、索引。
-- 计时器/调度/通知。
-- Agent 编排、工具执行、行动账本。
-- 安全：路径校验、确认、prompt-injection 防护。
-
-### 3.2 Preload
-
-- 只暴露白名单 API；不暴露 `ipcRenderer` 原始对象。
-- 每个 API 有 TypeScript 类型 + Zod 校验。
-- 不暴露 `fs`、`child_process`、`shell` 原始能力。
-
-示例：
-
-```ts
-contextBridge.exposeInMainWorld('companion', {
-  chat: {
-    send: (input: ChatSendInput) => ipcRenderer.invoke('chat:send', input),
-    cancel: (requestId: string) => ipcRenderer.invoke('chat:cancel', requestId),
-  },
-  memory: { list: (q: MemoryQuery) => ipcRenderer.invoke('memory:list', q) },
-  // ...
-});
-```
-
-### 3.3 Renderer
-
-- 不直接访问文件系统/数据库/网络。
-- 不保存 API Key。
-- 不信任主进程返回的 HTML；Markdown 渲染需 sanitize。
-- 外部链接通过 `shell.openExternal`（主进程校验协议）。
-
-### 3.4 窗口安全基线
-
-- `contextIsolation: true`
-- `nodeIntegration: false`
-- `sandbox: true`（如与 preload 兼容）
-- `webSecurity: true`
-- CSP：禁止内联脚本/远程脚本；图片/字体按需。
-- 禁止 `will-navigate` 到外部 URL；外链走系统浏览器。
-- 单实例锁；第二实例聚焦已有窗口。
-
----
-
-## 4. 目录结构（计划）
+## A3. 目录结构
 
 ```text
-ai-companion/
-  package.json
-  electron.vite.config.ts
-  tsconfig.json
-  docs/
-  persona.md
-  config/
-    persona-patches/
-  src/
-    main/
-      index.ts
-      window.ts
-      tray.ts
-      ipc/
-        index.ts
-        chat.ts
-        memory.ts
-        schedule.ts
-        focus.ts
-        language.ts
-        counseling.ts
-        skills.ts
-        games.ts
-        settings.ts
-      services/
-        agent/
-          orchestrator.ts
-          prompt.ts
-          tools.ts
-          deepseek.ts
-          cost.ts
-        memory/
-          store.ts
-          indexer.ts
-          extractor.ts
-          retrieve.ts
-          consolidate.ts
-        schedule/
-          tasks.ts
-          reminders.ts
-          import.ts
-        focus/
-          timer.ts
-          stats.ts
-        language/
-          words.ts
-          srs.ts
-          reading.ts
-          writing.ts
-        counseling/
-          session.ts
-          safety.ts
-        skills/
-          plan.ts
-        games/
-          gomoku.ts
-          textquest.ts
-        security/
-          paths.ts
-          confirm.ts
-          injection.ts
-        backup.ts
-      db/
-        connection.ts
-        migrations/
-      tools/
-        registry.ts
-        definitions.ts
-      events/
-        bus.ts
-        dailyBrief.ts
-    preload/
-      index.ts
-    renderer/
-      index.html
-      src/
-        app/
-        rooms/
-          chat/
-          focus/
-          language/
-          schedule/
-          counseling/
-          skills/
-          games/
-          memory/
-          settings/
-        components/
-        stores/
-        styles/
-    shared/
-      types.ts
-      ipc.ts
-      tools.ts
-      errors.ts
-  data/        # runtime, ignored
-  memory/      # runtime, ignored
-  config/      # runtime, ignored
-  backups/     # runtime, ignored
+persona.md                 人设（只读，提示词核心）
+server/
+  index.mts                HTTP 服务、路由、DeepSeek 调用、patch 存取
+  persona.ts               系统提示词 / patch 提案提示词 / 预览提示词
+src/
+  shared/types.ts          前后端共享类型（LabApi、设置、patch、事件）
+  renderer/
+    index.html
+    src/
+      main.tsx             入口，挂载 window.lab
+      webLab.ts            LabApi 的 HTTP 实现（含 SSE 解析）
+      App.tsx              聊天界面、安全词/快捷键、调试入口
+      components/          SettingsModal、DebugModal
+      styles.css
+vite.config.mts            前端构建
+config/                    运行时（git 忽略）：web-settings.json、persona-patches/*.json
+out/                       构建产物（git 忽略）
 ```
 
-> 首版可以用更扁的结构；上表是目标结构，不是一次性全建。
+## A4. 运行时数据与密钥
+
+- 设置：`config/web-settings.json`（称呼、关系、安全词、演示模式、已启用 patch id）。**不含 API Key。**
+- patch：`config/persona-patches/<uuid>.json`，一个 patch 一个文件；回滚 = 从 `activePatchIds` 移除，文件保留。
+- **API Key 只保存在 Node 进程内存**，不落盘、不写日志；重启服务要重填。渲染层只得到 `hasApiKey`。
+- 路径基准是启动时的工作目录（`process.cwd()`），请在项目根目录运行。
+
+## A5. 聊天流程
+
+1. UI 调用 `window.lab.sendChat`，`POST /api/chat`，响应为 SSE。
+2. 服务端用 `persona.md` + 设置 + 已启用 patch 组装系统提示词（`buildSystemPrompt`），拼上最近 20 条历史（过滤 `[错误]` 开头的消息）。
+3. 演示模式或未配置 Key：本地 `demoReply` 逐字符块推送；否则 `streamDeepSeek` 转发 DeepSeek 流。
+4. 事件 `chunk` / `done` / `error` 逐条推给 UI；`POST /api/cancel` 通过 `AbortController` 中止；客户端断开也会中止。
+
+## A6. 人设调试（patch）流程
+
+- 入口：设置里的“调试人设”、快捷键 `Ctrl+Shift+D`、聊天里输入安全词（在 UI 本地拦截，不发给模型）。
+- 提案：`POST /api/debug/propose`，模型在 JSON 模式下输出 `{title, summary, rules[≤6], examples[≤4]}`，服务端清洗并校验，没有规则则报错。
+- 预览：`POST /api/debug/preview`，对至多 4 条样例分别用“当前”和“当前 + 新 patch”各生成一次，返回前后对比；不写盘。
+- 应用：`POST /api/debug/apply` 写 patch 文件并加入 `activePatchIds`，下一轮聊天生效。
+- 回滚：`POST /api/debug/revert` 从 `activePatchIds` 移除。
+- 提案提示词（`server/persona.ts`）要求 patch 只调语气、称呼、情绪、主动性等，不得改安全 / 内容 / 危机 / 能力边界；这是提示词层面的约束，服务端没有字段白名单校验。
+
+## A7. 安全现状
+
+- 只监听 `127.0.0.1`；未做鉴权，**不要用反向代理 / 端口转发暴露到局域网或公网**。
+- 静态文件托管有路径穿越校验；请求体上限 5 MB。
+- API Key 不落盘；`config/` 在 `.gitignore` 中。
+- 前端 CSP 在 `src/renderer/index.html`，仅允许同源和 `localhost` 连接。
+- 完整的安全设计（路径守卫、prompt injection、工具确认）属规划，见 [SECURITY](SECURITY.md)。
+
+## A8. 验证方式
+
+当前没有自动化测试。改动后至少执行：`npm run typecheck`、`npm run build`，再 `npm start` 在演示模式下走一遍聊天和调试流程。
 
 ---
+
+# 第二部分：规划设计（P1 及以后，尚未实现）
+
+> 以下为完整 app 的目标设计。技术选型除 React + TypeScript、Markdown + SQLite、DeepSeek 外**均未锁定**；桌面壳、SQLite 驱动（原生 / WASM / `node:sqlite`）、UI 库、校验库等在搭 P1 骨架时先做最小验证再定。目录与模块名只是目标结构。
 
 ## 5. 数据层
 
@@ -520,7 +378,7 @@ DeepSeek 官方要求：请求带 `tools` 时，`reasoning_content` 必须完整
 
 ### 7.7 流式/取消/重生成
 
-- 主进程用 `fetch` + SSE 解析；通过 IPC 逐块推送。
+- 后端用 `fetch` + SSE 解析；逐块推送给 UI（当前 P0.5 即用 SSE）。
 - 取消：AbortController；保存已生成部分为“已停止”。
 - 重生成：删除上一条 assistant 消息（软删除），不重复写记忆；记忆提取以最终消息为准。
 - 编辑用户消息：截断后续分支；旧分支归档（可选）。
@@ -635,20 +493,6 @@ DeepSeek 官方要求：请求带 `tools` 时，`reasoning_content` 必须完整
 
 ---
 
-## 11. 安全（摘要）
-
-详见 [SECURITY](SECURITY.md)。
-
-- 文件访问限制在数据根目录 + 用户显式选择的文件。
-- 路径规范化 + 防穿越；拒绝符号链接逃逸。
-- 外部内容（文件/网页/搜索结果）视为不可信数据；不执行其中指令；不作为系统提示。
-- 工具参数 Zod 校验；IPC 白名单；CSP；`contextIsolation`。
-- API Key 用 Electron `safeStorage` 加密；不写日志/导出。
-- 敏感数据分类；私密房间锁；导出前提示。
-- 行动账本 + 确认；破坏性操作可回滚（备份）。
-
----
-
 ## 12. 备份与迁移
 
 - 每日自动快照：`backups/YYYY-MM-DD/`（memory + sqlite + config，不含 Key 明文）。
@@ -664,7 +508,7 @@ DeepSeek 官方要求：请求带 `tools` 时，`reasoning_content` 必须完整
 ### 13.1 自动化
 
 - 单元：记忆解析/索引/检索、FSRS、重复规则、计时、工具校验。
-- 集成：IPC、数据库、导入预览、备份恢复。
+- 集成：HTTP/内部接口、数据库、导入预览、备份恢复。
 - E2E：首次引导、聊天、记忆收件箱、专注、提醒（Playwright）。
 - 安全：路径穿越、prompt injection、工具越权、Key 泄露。
 
@@ -685,20 +529,6 @@ DeepSeek 官方要求：请求带 `tools` 时，`reasoning_content` 必须完整
 - 记录每轮 tokens/费用；对比预算；发现异常（如工具结果过大）。
 - 目标：50 轮/天 ≈ ¥0.6；超过 ¥2 触发告警。
 
----
-
-## 14. 打包与运行
-
-- 开发：`npm run dev`（electron-vite）。
-- 打包：`npm run build` + `electron-builder`。
-- 首版：Windows 便携版（免安装，双击运行）；后续安装包 + 开机自启。
-- 单实例；关闭窗口默认最小化到托盘（可设置退出）。
-- 开机自启：`app.setLoginItemSettings`；用户可关。
-- 通知：打包后设置 AppUserModelID；开发模式可能显示为 Electron。
-- 代码签名：首版不做；Windows SmartScreen 可能提示，属预期。
-
----
-
 ## 15. 性能目标
 
 - 冷启动 <3s；窗口可交互 <1.5s。
@@ -708,15 +538,21 @@ DeepSeek 官方要求：请求带 `tools` 时，`reasoning_content` 必须完整
 - 数据库写入 <50ms/次；批量写入事务。
 - 备份 <5s（常规数据量）。
 
----
 
-## 16. 已知风险与应对
+## 16. 打包与分发（待定）
+
+- 当前仅有本地 Node + 浏览器运行方式。
+- 桌面壳待 P1 评估：Tauri 或正式签名 Electron；需要的能力：托盘常驻、开机自启、系统通知、单实例。
+- 目标平台：Windows 与 Linux。通知、自启、凭据存储（Windows 凭据管理器 / libsecret）按平台分别实现。
+
+## 17. 已知风险与应对
 
 | 风险 | 影响 | 应对 |
 |---|---|---|
 | DeepSeek 思考 + 工具 `reasoning_content` | 400/对话中断 | 工具回合关思考；或自定义适配器回传 |
 | AI SDK 兼容性 | 工具调用失败 | 自定义 `DeepSeekClient`；最小验证 |
-| `better-sqlite3` 原生构建 | 安装/打包失败 | electron-rebuild；回退 WASM/JSON |
+| SQLite 驱动选型 | 安装/打包失败 | 先验证 `node:sqlite` / WASM / 原生；避免要求编译工具链 |
+| 桌面壳兼容 | 本地启动崩溃（见 D047） | P1 先做最小壳验证，再接功能 |
 | 图片解析错误 | 课表错位 | 预览确认；可编辑；不直接入库 |
 | Prompt injection | 越权/数据泄露 | 外部内容隔离；工具白名单；确认 |
 | 通知不达 | 漏提醒 | 托盘/自启；启动补发；任务列表兜底 |

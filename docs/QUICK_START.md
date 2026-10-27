@@ -1,21 +1,21 @@
 # QUICK_START — 小白上手指南
 
-> 当前项目还在**设计阶段**，没有可运行的功能代码。这份文档先帮你理解“要做什么、需要准备什么、以后怎么跑”。
+> 当前可运行的只有 **P0.5 人设调试器**（Node 服务 + 浏览器界面），完整 app 仍在设计阶段。这份文档说明需要准备什么、怎么跑、术语是什么意思。
 
 ## 1. 你现在需要准备什么
 
-1. Windows 电脑（已有）。
-2. Node.js 24（当前机器已安装；`node --version` 可查）。
-3. 一个 DeepSeek 账号 + 少量余额（可选；没有也能先用演示模式）。
-4. 读一遍 [`PRD.md`](PRD.md) 和 [`COST.md`](COST.md)。
+1. Windows 或 Linux 电脑。
+2. Node.js ≥ 22（`node --version` 可查）和 npm；Git。
+3. 一个现代浏览器（Edge / Chrome / Firefox）。
+4. 一个 DeepSeek 账号 + 少量余额（可选；没有也能先用演示模式）。
+5. 读一遍 [`PRD.md`](PRD.md) 和 [`COST.md`](COST.md)。
 
 ## 1.1 还需要下载什么
 
-- **现在不用额外下载**。Node 24、npm 11、Git 已装；第一次 `npm install` 会自动下载 Electron/React 等依赖。
-- PowerShell 可能禁止 `npm.ps1`：用 `npm.cmd` 或 `cmd /c npm`，不需要改系统策略。
-- 不需要：Python（当前只是商店别名）、Visual Studio Build Tools、Rust、Docker、Unity、pnpm、OCR/TTS 服务。
+- **现在不用额外下载**。第一次运行会自动 `npm install`，依赖只有 React、Vite、TypeScript 等纯 JS 包，不需要编译工具链。
+- Windows 的 PowerShell 可能禁止 `npm.ps1`：用 `npm.cmd` 或 `cmd /c npm`，不需要改系统策略。
+- 不需要：Python、Visual Studio Build Tools、Rust、Docker、Unity、pnpm、OCR/TTS 服务。
 - 可选：VS Code（看/改代码）。
-- 如果以后原生 SQLite 没有预编译包，才可能需要 Python + VS Build Tools；我会先验证，尽量不让你装。
 - DeepSeek API Key 不是下载，去平台创建；没有也能演示模式。
 
 ## 2. API Key 是什么
@@ -41,7 +41,7 @@ API Key 是 DeepSeek 平台发给你的一个字符串（通常以 `sk-` 开头�
 
 - 不要把 Key 发在聊天里、截图里、Git 里。
 - 如果怀疑泄露：去平台撤销该 Key，再生成新的。
-- Electron 版会用 Windows 系统凭据加密保存 Key；当前浏览器版只保存在本次 Node 进程内存，不落盘，重启要重填。
+- 当前版本只把 Key 保存在本次 Node 进程内存，不落盘，重启服务要重填。
 - 如果你在平台上看到已有的 “DeepSeek Harness” Key：那是当前工具自己用的，**不要复用它，也不要删除它**；给 AI伙伴 新建一个专用 Key。
 
 ## 4. 没有 Key 也能用吗
@@ -62,19 +62,17 @@ API Key 是 DeepSeek 平台发给你的一个字符串（通常以 `sk-` 开头�
 
 ## 6. 数据放在哪
 
-默认在工作区：
+当前 P0.5 只会在项目根目录写：
 
 ```text
-C:\Users\6fish\Desktop\AI伙伴\
-  data/        SQLite
-  memory/      长期记忆（Markdown，可直接看/改）
-  config/      配置 + 加密后的 Key
-  backups/     每日快照 + 手动导出
+config/
+  web-settings.json     称呼、关系、安全词、演示模式、已启用 patch（不含 API Key）
+  persona-patches/      每个人设 patch 一个 JSON 文件
 ```
 
-- 这些目录不进 Git。
-- 想备份：设置 → 数据 → 导出 ZIP；或直接复制 `memory/`。
-- 卸载程序不会自动删除数据；换电脑时复制这几个目录即可。
+- `config/` 不进 Git；备份直接复制它即可。`persona.md` 只读，不会被改。
+- 请在项目根目录启动服务，否则会在别处生成 `config/`。
+- 完整 app（P1+）计划再增加 `data/`（SQLite）、`memory/`（Markdown 长期记忆）、`backups/`，同样不进 Git。
 
 ## 6.1 称呼与调试模式
 
@@ -90,9 +88,8 @@ C:\Users\6fish\Desktop\AI伙伴\
 
 | 术语 | 大白话 |
 |---|---|
-| Electron | 用网页技术做桌面应用的壳；VS Code、Discord 都用它 |
-| 主进程 / 渲染进程 | 主进程管文件/网络/数据库；渲染进程管界面 |
-| IPC | 主进程和界面之间的“内部电话”；只允许白名单调用 |
+| 后端 / 前端 | 后端是本地 Node 服务，管文件/网络/模型调用；前端是浏览器里的界面 |
+| SSE | 服务端一边生成一边把文字推给界面的流式协议 |
 | API Key | 调用模型的“充值卡 + 门禁卡” |
 | Token | 模型计费单位；1 token ≈ 1–2 个汉字 |
 | 上下文 | 这次请求一起发给模型的内容（人格/记忆/对话/工具） |
@@ -111,31 +108,32 @@ C:\Users\6fish\Desktop\AI伙伴\
 
 ## 8. 运行 P0.5 人设调试器（当前可用）
 
-### 8.1 浏览器版（推荐）
+### 8.1 一键启动
 
-**双击根目录的 `start-persona-lab-web.cmd`。** 它会启动本地 Node 服务并打开 Edge：
+- **Windows**：双击根目录的 `start-persona-lab-web.cmd`。
+- **Linux / macOS**：在项目根目录运行 `./start-persona-lab-web.sh`。
+
+脚本会按需 `npm install`，构建前端，启动本地服务并打开浏览器：
 
 ```text
 http://127.0.0.1:4173
 ```
 
-也可以手动：
+### 8.2 手动启动
 
-```powershell
-cd "C:\Users\6fish\Desktop\AI伙伴"
-npm.cmd run build:web
-npm.cmd run web
+```bash
+npm install        # 首次
+npm run build
+npm start
 ```
 
-浏览器版说明：
+Windows PowerShell 里把 `npm` 换成 `npm.cmd`。
 
-- 不需要 Electron；Node 做后台，Edge 做界面。
-- API Key 只保存在本次 Node 进程内存里，**不落盘**；重启服务要重填。
-- 关闭那个黑色命令行窗口 = 关闭服务。
-
-### 8.2 Electron 版（已删除）
-
-> Electron 运行时和缓存已按你的要求删除；`npm.cmd run dev` 不再可用。当前机器上 Electron 连 `--version` 都会 `STATUS_BREAKPOINT`（`-2147483645`）；DSH 能跑是因为它是**签名、打包好的 Electron 成品**，自带运行时，和本地未签名 dev 版不是一回事。
+- 需要 Node ≥ 22；服务只监听 `127.0.0.1`，不要暴露到局域网/公网。
+- 端口可用 `PORT=5000 npm start` 修改；`NO_OPEN=1` 则不自动打开浏览器（Windows cmd 用 `set`，PowerShell 用 `$env:NO_OPEN=1`）。
+- 如果没有自动弹出浏览器（比如没有图形界面），手动访问上面的地址。
+- API Key 只保存在本次 Node 进程内存，**不落盘**；重启服务要重填。
+- 关闭命令行窗口 / `Ctrl+C` = 关闭服务。
 
 ### 8.3 首次运行设置
 
@@ -173,16 +171,18 @@ A：不会。它记“重要的事”，不是全部聊天；记忆可查/可改
 **Q：AI 会不会假装做过什么？**
 A：设计上不允许。所有行动必须来自行动账本；没有记录就不能说做过。
 
-## 10. 排障（以后）
+## 10. 排障
 
 | 现象 | 可能原因 | 处理 |
 |---|---|---|
-| 提示未配置 Key | 没填/加密失败 | 设置里重填；看是否被杀毒拦截 |
+| 提示未配置 Key | 没填，或服务重启过（Key 只存内存） | 设置里重填 |
 | Key 无效 | 复制错/被撤销 | 重新生成；不要带空格 |
 | 余额不足 | 没充值/用超 | 去平台充值；看成本面板 |
 | 网络失败 | 代理/DNS/防火墙 | 检查系统代理；换网络 |
-| 通知不弹 | 开发模式/专注助手 | 打包后测试；检查 Windows 通知权限 |
-| 安装依赖失败 | 原生模块/网络 | 用 electron-rebuild；看日志 |
+| 页面显示“还没有构建前端” | 没执行 `npm run build` | 先构建再启动 |
+| 端口被占用 | 4173 已有进程 | 换端口：`PORT=5000 npm start` |
+| 浏览器没自动打开 | 无图形界面 / 缺 `xdg-open` | 手动访问 `http://127.0.0.1:4173` |
+| 安装依赖失败 | 网络 / Node 版本过低 | 检查网络和代理；确认 Node ≥ 22 |
 | 记忆不更新 | 文件被占用/格式错 | 重启；看 `memory/` 是否有写入权限 |
 
 ## 11. 安全提醒

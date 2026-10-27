@@ -1,326 +1,101 @@
-# API — IPC 与工具契约
+# API — 本地 HTTP 接口与工具契约
 
-> 本项目没有对外 HTTP API。这里的 API 指 **渲染进程 ↔ 主进程的 IPC**，以及 **Agent ↔ 工具** 的契约。
-> 所有输入输出都必须通过 TypeScript 类型 + Zod 校验；渲染进程不能直接访问文件/数据库/网络。
+> 本文分两部分：**第一部分是当前已实现的 P0.5 本地 HTTP 接口（以 `server/index.mts` 与 `src/shared/types.ts` 为准）**；**第二部分是 P1 及以后的规划（工具契约、错误码、确认流程，尚未实现）**。
+> 服务只监听 `127.0.0.1`，没有鉴权，不是对外 API。
 
-## 0. 约定
+# 第一部分：当前实现（P0.5）
 
-- API 版本：`apiVersion = 1`；不兼容变更时递增。
-- 命名：`domain:action`，如 `chat:send`、`memory:list`。
-- 所有 IPC 返回 `Result<T>`，不抛裸异常到渲染进程。
-- 所有路径为绝对路径或数据根目录相对路径；主进程负责规范化/校验。
-- 所有时间：ISO 8601 字符串（本地时区带偏移），数据库存 UTC + 时区偏移另存。
-- 所有 ID：UUID v4（或 nanoid，统一一种）。
-- 所有写操作带 `requestId`，用于幂等/取消/日志。
+## A1. 约定
 
-```ts
-export type Result<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: AppError };
+- 基址：`http://127.0.0.1:4173`（`PORT` 环境变量可改）。
+- 请求与响应均为 JSON（UTF-8），响应带 `Cache-Control: no-store`；请求体上限 5 MB。
+- 出错：HTTP 4xx/5xx，body 为 `{ "error": string }`；未知路径返回 404。
+- 前端通过 `window.lab`（`LabApi`，定义在 `src/shared/types.ts`）调用，由 `src/renderer/src/webLab.ts` 实现为下列 HTTP 请求。
+- API Key 只经 `POST /api/settings` 进入服务进程内存，任何响应都不返回 Key，只返回 `hasApiKey`。
 
-export interface AppError {
-  code: ErrorCode;
-  message: string;      // 用户可读中文
-  detail?: string;      // 调试用，不含密钥
-  retryable?: boolean;
-}
+## A2. 接口一览
+
+| 方法 | 路径 | `LabApi` 方法 | 请求 | 响应 |
+|---|---|---|---|---|
+| GET | `/api/settings` | `getSettings` | — | `PublicSettings` |
+| POST | `/api/settings` | `saveSettings` | `SettingsSaveInput`（可含 `apiKey`） | `PublicSettings` |
+| POST | `/api/clear-key` | `clearApiKey` | — | `PublicSettings` |
+| GET | `/api/persona` | `getPersona` | — | `{ text, path }`（读取根目录 `persona.md`） |
+| POST | `/api/chat` | `sendChat` | `ChatSendInput` | SSE 流 |
+| POST | `/api/cancel` | `cancelChat` | `{ requestId }` | `{ cancelled }` |
+| GET | `/api/debug/patches` | `listPatches` | — | `PersonaPatch[]`（新→旧） |
+| POST | `/api/debug/propose` | `proposePatch` | `DebugProposeInput` | `PersonaPatchProposal` |
+| POST | `/api/debug/preview` | `previewPatch` | `DebugPreviewInput` | `PreviewResult` |
+| POST | `/api/debug/apply` | `applyPatch` | `DebugApplyInput` | `{ patch, settings, patches }` |
+| POST | `/api/debug/revert` | `revertPatch` | `DebugRevertInput` | `{ settings, patches }` |
+
+其余路径返回前端静态文件（`out/renderer`，找不到的路径回退到 `index.html`）。
+
+## A3. 聊天 SSE
+
+`POST /api/chat` 返回 `text/event-stream`，每条为 `data: <json>\n\n`：
+
+```json
+{ "type": "chunk", "text": "…" }
+{ "type": "done" }
+{ "type": "error", "error": "…" }
 ```
 
-## 1. IPC 通道
+- 服务端事件不带 `requestId`，`webLab.ts` 在转成 `ChatEvent` 时补上。
+- 演示模式（`demoMode` 为真或未配置 Key）由本地关键词回复，不访问网络。
+- 否则调用 DeepSeek `chat/completions`（`deepseek-flash`，`stream: true`，`thinking: disabled`，`max_tokens: 1200`，`temperature: 0.7`）。
+- 历史只取最近 20 条，过滤空消息和以 `[错误]` 开头的消息。
+- 取消：`POST /api/cancel` 或客户端断开连接，都会中止上游请求，随后发送 `done`。
 
-### 1.1 应用/设置
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `app:get-state` | — | `AppState` |
-| `app:open-data-folder` | — | `void` |
-| `settings:get` | — | `Settings` |
-| `settings:update` | `Partial<Settings>` | `Settings` |
-| `settings:test-api-key` | `{ key?: string }` | `{ ok: boolean; model?: string; error?: string }` |
-| `usage:get` | `{ range: 'today' \| 'month' }` | `UsageSummary` |
-| `backup:create` | `{ kind: 'manual' \| 'auto' }` | `{ path: string; bytes: number }` |
-| `backup:restore` | `{ path: string; confirm: true }` | `{ restored: boolean }` |
-
-### 1.2 聊天
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `chat:send` | `ChatSendInput` | `{ requestId: string }`（流式事件另行推送） |
-| `chat:cancel` | `{ requestId: string }` | `{ cancelled: boolean }` |
-| `chat:regenerate` | `{ messageId: string }` | `{ requestId: string }` |
-| `chat:edit` | `{ messageId: string; content: string }` | `{ ok: true }` |
-| `chat:history` | `{ conversationId?: string; before?: string; limit?: number }` | `Message[]` |
-| `chat:search` | `{ query: string; limit?: number }` | `Message[]` |
-| `chat:export` | `{ conversationId?: string; format: 'md' \| 'json' }` | `{ path: string }` |
-
-流式事件（主 → 渲染）：
+## A4. 核心类型
 
 ```ts
-type ChatStreamEvent =
-  | { type: 'start'; requestId: string; messageId: string }
-  | { type: 'delta'; requestId: string; text: string }
-  | { type: 'reasoning'; requestId: string; text: string } // 可选，折叠展示
-  | { type: 'tool'; requestId: string; name: string; status: 'running' \| 'done' \| 'error'; summary?: string }
-  | { type: 'confirm'; requestId: string; confirmId: string; request: ConfirmationRequest }
-  | { type: 'usage'; requestId: string; tokensIn: number; tokensOut: number; costUsd: number }
-  | { type: 'done'; requestId: string; messageId: string; finishReason: string }
-  | { type: 'error'; requestId: string; error: AppError };
-```
+type AddressPreference = 'you' | 'name' | 'nickname' | 'formal';
+type Relationship = 'couple' | 'friend' | 'family' | 'mentor' | 'custom';
 
-### 1.3 记忆
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `memory:list` | `MemoryQuery` | `{ items: Memory[]; total: number }` |
-| `memory:search` | `{ query: string; limit?: number; includeSensitive?: boolean }` | `Memory[]` |
-| `memory:update` | `{ id: string; patch: Partial<Memory> }` | `Memory` |
-| `memory:delete` | `{ id: string; confirm: true }` | `{ deleted: boolean }` |
-| `memory:merge` | `{ ids: string[]; text: string }` | `Memory` |
-| `memory:inbox` | `{ limit?: number }` | `Memory[]` |
-| `memory:accept` | `{ id: string }` | `Memory` |
-| `memory:reject` | `{ id: string }` | `{ rejected: boolean }` |
-| `memory:rebuild-index` | — | `{ count: number }` |
-| `memory:export` | `{ format: 'md' \| 'json' \| 'zip' }` | `{ path: string }` |
-
-### 1.4 关于你（用户模型）
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `user-model:get` | — | `UserModel` |
-| `user-model:update` | `{ id: string; patch: Partial<Trait> }` | `UserModel` |
-| `user-model:delete` | `{ id: string }` | `UserModel` |
-| `user-model:confirm` | `{ id: string; accepted: boolean }` | `UserModel` |
-
-### 1.5 日程
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `task:list` | `{ range: 'today' \| 'week' \| 'month' \| 'all' }` | `Task[]` |
-| `task:create` | `TaskInput` | `Task` |
-| `task:update` | `{ id: string; patch: Partial<TaskInput> }` | `Task` |
-| `task:delete` | `{ id: string; confirm: true }` | `{ deleted: boolean }` |
-| `task:complete` | `{ id: string; evidence?: string }` | `Task` |
-| `task:snooze` | `{ id: string; minutes: number }` | `Task` |
-| `schedule:import-preview` | `{ path: string; kind: 'image' \| 'excel' \| 'pdf' \| 'word' \| 'text' }` | `ImportPreview` |
-| `schedule:import-commit` | `{ previewId: string; items: ImportItem[] }` | `{ created: number; skipped: number }` |
-
-### 1.6 专注
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `focus:start` | `{ kind: 'up' \| 'down' \| 'pomodoro'; plannedSec?: number; taskId?: string }` | `FocusSession` |
-| `focus:pause` | — | `FocusSession` |
-| `focus:resume` | — | `FocusSession` |
-| `focus:stop` | `{ reason?: string }` | `FocusSession` |
-| `focus:current` | — | `FocusSession \| null` |
-| `focus:stats` | `{ range: 'today' \| 'week' \| 'month' }` | `FocusStats` |
-
-### 1.7 外语
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `language:goals` | `{ language: 'en' \| 'ja' }` | `LanguageGoal` |
-| `language:update-goals` | `{ language: 'en' \| 'ja'; patch: Partial<LanguageGoal> }` | `LanguageGoal` |
-| `language:packs` | `{ language?: 'en' \| 'ja' }` | `WordPack[]` |
-| `language:due` | `{ language: 'en' \| 'ja'; limit?: number }` | `Card[]` |
-| `language:review` | `{ cardId: string; rating: 1 \| 2 \| 3 \| 4 }` | `Card` |
-| `language:add-word` | `WordInput` | `Word` |
-| `language:lookup` | `{ word: string; language: 'en' \| 'ja' }` | `WordLookup` |
-| `language:import-csv` | `{ path: string; language: 'en' \| 'ja' }` | `{ imported: number; skipped: number }` |
-| `language:writing-feedback` | `{ prompt: string; draft: string; exam?: 'ielts' \| 'toefl' \| 'cet' }` | `WritingFeedback` |
-
-### 1.8 心理咨询
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `counseling:start` | `{ mode?: CounselingMode }` | `CounselingSession` |
-| `counseling:end` | `{ sessionId: string }` | `CounselingSession` |
-| `counseling:mood` | `{ score: number; tags?: string[]; note?: string }` | `MoodLog` |
-| `counseling:safety-plan` | `{ content: SafetyPlan }` | `SafetyPlan` |
-| `counseling:unlock` | `{ password: string }` | `{ ok: boolean }` |
-| `counseling:lock` | — | `{ locked: boolean }` |
-
-### 1.9 技能/游戏
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `skill:plans` | — | `SkillPlan[]` |
-| `skill:create` | `{ topic: string; goal: string; level?: string; minutesPerWeek?: number }` | `SkillPlan` |
-| `skill:update` | `{ id: string; patch: Partial<SkillPlan> }` | `SkillPlan` |
-| `skill:log-practice` | `{ planId: string; kind: string; minutes: number; note?: string }` | `PracticeLog` |
-| `game:list` | — | `GameInfo[]` |
-| `game:start` | `{ game: 'gomoku' \| 'textquest' \| 'story' \| 'textgeo' \| 'turtle' \| 'twentyq' }` | `GameSession` |
-| `game:move` | `{ sessionId: string; move: unknown }` | `GameSession` |
-| `game:save` | `{ sessionId: string }` | `{ saved: boolean }` |
-| `game:load` | `{ sessionId: string }` | `GameSession` |
-
-### 1.10 确认
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `confirm:respond` | `{ confirmId: string; approved: boolean; remember?: boolean }` | `{ ok: boolean }` |
-
-### 1.11 人格 / 调试
-
-| 通道 | 输入 | 输出 |
-|---|---|---|
-| `persona:get` | — | `PersonaProfile` |
-| `persona:update` | `Partial<PersonaProfile>` | `PersonaProfile` |
-| `debug:enter` | `{ source: 'safeword' \| 'hotkey' \| 'settings'; passphrase?: string }` | `DebugSession` |
-| `debug:exit` | — | `{ ok: true }` |
-| `debug:state` | — | `DebugSession` |
-| `debug:propose-patch` | `{ instruction: string; messageId?: string }` | `PersonaPatchProposal` |
-| `debug:preview` | `{ patchId: string; messages: string[] }` | `PreviewResult` |
-| `debug:apply` | `{ patchId: string; confirm: true }` | `PersonaPatch` |
-| `debug:revert` | `{ patchId?: string }` | `PersonaProfile` |
-| `debug:list-patches` | — | `PersonaPatch[]` |
-
-## 2. 核心类型（节选）
-
-```ts
-export interface Settings {
-  apiKeyConfigured: boolean;
+interface LabSettings {
+  aiName: string; aiNickname: string;
+  userName: string; userNickname: string;
+  addressPreference: AddressPreference;
+  relationship: Relationship;
+  safeWord: string;
   demoMode: boolean;
-  model: string;                 // 'deepseek-flash'
-  chatThinking: 'off' | 'on-demand';  // 聊天默认 off；on-demand = 输入框可手动开 high
-  dailyBudgetCny: number;        // 默认 2
-  dataRoot: string;              // 默认工作区
-  proactive: {
-    mode: 'off' | 'low' | 'normal' | 'high' | 'companion' | 'custom';
-    intervalMin?: number;        // custom 时使用
-    quietHours: [string, string];
-  };
-  notifications: { enabled: boolean; sound: boolean; quietHours: [string, string] };
-  dnd: { until?: string; hardReminders: boolean };
-  debug: { enabled: boolean; safeWordSet: boolean; hotkey: string; requirePassphrase: boolean };
-  privateRoomLocked: boolean;
-  ageConfirmed: boolean;
-}
-
-export interface PersonaProfile {
-  aiName: string;                 // 应用内设置，必填
-  aiNickname?: string;            // 可选；用户给 AI 的昵称
-  userName?: string;
-  userNickname?: string;
-  addressPreference: 'name' | 'nickname' | 'you' | 'formal';
-  relationship: 'couple' | 'friend' | 'family' | 'mentor' | 'custom';
-  ageRange?: '21-27' | string;
-  baseVersion: string;
   activePatchIds: string[];
 }
+interface PublicSettings extends LabSettings { hasApiKey: boolean }
+interface SettingsSaveInput extends LabSettings { apiKey?: string }
 
-export interface PersonaPatchProposal {
-  id: string;
-  instruction: string;
-  diff: Array<{
-    field: string;                // 白名单字段
-    op: 'set' | 'append' | 'remove';
-    value: string | number | boolean;
-    reason: string;
-  }>;
-  examples: string[];             // 2–3 条示例回复
-  warnings?: string[];
-}
+interface ChatSendInput { requestId: string; text: string; history: ChatMessage[] }
+type ChatEvent =
+  | { requestId: string; type: 'chunk'; text: string }
+  | { requestId: string; type: 'done' }
+  | { requestId: string; type: 'error'; error: string };
 
-export interface PersonaPatch extends PersonaPatchProposal {
-  status: 'active' | 'archived' | 'rejected';
-  createdAt: string;
-  appliedAt?: string;
-  revertedAt?: string;
-}
-
-export interface DebugSession {
-  active: boolean;
-  source?: 'safeword' | 'hotkey' | 'settings';
-  startedAt?: string;
-  selectedMessageId?: string;
-  currentPatchIds: string[];
-}
-
-export interface PreviewResult {
-  patchId: string;
-  samples: Array<{ input: string; before: string; after: string }>;
-}
-
-export interface ChatSendInput {
-  conversationId?: string;
-  room: RoomId;
-  text: string;
-  attachments?: { kind: 'image' | 'file'; path: string }[];
-  thinking?: 'off' | 'low' | 'high';  // 默认 off；只有用户手动开才 high
-  requestId?: string;
-}
-
-export type RoomId =
-  | 'chat' | 'focus' | 'language:en' | 'language:ja'
-  | 'schedule' | 'counseling' | 'skills' | 'games' | 'memory' | 'settings';
-
-export interface Memory {
-  id: string;
-  layer: 'core' | 'episodic' | 'semantic' | 'sensitive';
-  kind: string;
-  text: string;
-  tags: string[];
-  sensitivity: 'normal' | 'sensitive' | 'private';
-  confidence: number;            // 0..1
-  source: 'user' | 'ai' | 'event';
-  sourceRef?: string;
-  pinned: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MemoryQuery {
-  layer?: Memory['layer'];
-  tag?: string;
-  query?: string;
-  includeSensitive?: boolean;
-  limit?: number;
-  offset?: number;
-}
-
-export interface TaskInput {
-  title: string;
-  notes?: string;
-  dueAt?: string;
-  durationMin?: number;
-  priority?: 0 | 1 | 2 | 3;
-  tags?: string[];
-  recurrence?: Recurrence;
-  condition?: TaskCondition;
-}
-
-export type TaskCondition =
-  | { kind: 'manual' }
-  | { kind: 'focus'; minutes: number; tag?: string }
-  | { kind: 'ai-confirm' }
-  | { kind: 'all'; conditions: TaskCondition[] };
-
-export interface FocusSession {
-  id: string;
-  kind: 'up' | 'down' | 'pomodoro';
-  plannedSec?: number;
-  elapsedSec: number;
-  startedAt: string;
-  endedAt?: string;
-  status: 'running' | 'paused' | 'completed' | 'cancelled';
-  taskId?: string;
-}
-
-export interface UsageSummary {
-  date: string;
-  tokensIn: number;
-  tokensOut: number;
-  costUsd: number;
-  costCny: number;
-  budgetCny: number;
-  byRoom: Record<string, { tokensIn: number; tokensOut: number; costCny: number }>;
+interface PersonaPatchProposal { title: string; summary: string; rules: string[]; examples: string[] }
+interface PersonaPatch extends PersonaPatchProposal {
+  id: string; instruction: string; createdAt: string; active: boolean;
 }
 ```
+
+其余类型（`ChatMessage`、`PreviewSample`、`PreviewResult`、`Debug*Input`）见 `src/shared/types.ts`。
+
+## A5. 调试接口的行为
+
+- `propose`：DeepSeek JSON 模式（`max_tokens: 900`，`temperature: 0.4`）；服务端清洗，`rules` 至多 6 条、`examples` 至多 4 条；没有规则时报错。演示模式返回固定的演示提案。
+- `preview`：`samples` 至多取 4 条；每条各生成“当前”和“套用提案后”两份回复；不写盘。
+- `apply`：写 `config/persona-patches/<uuid>.json`（`rules` 至多 12 条、`examples` 至多 6 条），并加入 `activePatchIds`。
+- `revert`：仅从 `activePatchIds` 移除，patch 文件保留。
+- 设置文件 `config/web-settings.json` 不含 API Key。
+
+---
+
+# 第二部分：规划（P1 及以后，尚未实现）
+
+> 以下是完整 app 的目标契约。传输层（HTTP / 桌面壳 IPC）待 P1 定；若有内部通道，一律采用“类型 + Zod 校验、白名单、`Result<T>` 返回”的约定。
 
 ## 3. 工具契约
 
-Agent 工具使用 JSON Schema；主进程用 Zod 再校验。示例：
+Agent 工具使用 JSON Schema；后端用 Zod 再校验。示例：
 
 ### 3.1 `save_memory`
 
@@ -466,10 +241,10 @@ Agent 工具使用 JSON Schema；主进程用 Zod 再校验。示例：
 
 ```text
 模型请求危险工具
-  → 主进程生成 confirmId + ConfirmationRequest
-  → 渲染进程弹窗（标题/说明/影响/参数摘要）
+  → 后端生成 confirmId + ConfirmationRequest
+  → 前端弹窗（标题/说明/影响/参数摘要）
   → 用户批准/拒绝
-  → 主进程执行/拒绝
+  → 后端执行/拒绝
   → 写 action_log（confirmed=true/false）
   → 结果回传模型
 ```
@@ -487,19 +262,18 @@ interface ConfirmationRequest {
 }
 ```
 
-## 6. 安全要求（IPC）
 
-- 所有通道在主进程注册时做 Zod 校验；未知字段拒绝。
-- 渲染进程不能传任意路径；文件操作只接受：
-  - 数据根目录内的相对路径；或
-  - 用户通过系统文件对话框选择的路径（主进程保存临时授权）。
-- 路径规范化后必须仍在允许根目录内；拒绝 `..`、符号链接逃逸、UNC 异常路径。
-- 不把 `ipcRenderer`、`fs`、`child_process` 暴露给渲染进程。
-- 所有外链协议白名单：`https:`、`http:`（可选）、`mailto:`；拒绝 `file:`、`javascript:`。
+## 6. 安全要求（规划）
+
+- 所有入口做 Zod 校验；未知字段拒绝。
+- 文件操作只接受数据根目录内的相对路径，或用户通过系统文件对话框选择的路径（保存临时授权）。
+- 路径规范化后必须仍在允许根目录内；拒绝 `..`、符号链接逃逸、UNC 异常路径（Windows）。
+- 不向前端暴露 `fs`、`child_process` 等原始能力。
+- 外链协议白名单：`https:`、`http:`（可选）、`mailto:`；拒绝 `file:`、`javascript:`。
 - 日志脱敏：API Key、Authorization、cookie、用户私密内容（咨询）不进普通日志。
 
 ## 7. 版本与兼容
 
-- `apiVersion` 变更时，主进程启动检查渲染进程版本；不匹配提示重启/更新。
+- 接口不兼容变更时递增 `apiVersion`。
 - 工具 schema 变更：保留旧字段至少一个版本；必要时迁移。
 - 数据库 schema 变更：见 ARCHITECTURE 的迁移策略。

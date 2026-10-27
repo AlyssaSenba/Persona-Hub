@@ -23,42 +23,36 @@
 | 误操作 | 让 AI “清空记忆” | 数据丢失 |
 | 模型错误 | AI 编造行动/记忆 | 信任受损 |
 | Key 泄露 | 日志/截图/仓库 | 费用损失 |
-| 路径穿越 | 工具传 `../../Windows/...` | 读写系统文件 |
-| 供应链 | Electron/依赖漏洞 | 远程代码执行 |
+| 路径穿越 | 工具传 `../../Windows/...` 或 `../../etc/...` | 读写系统文件 |
+| 供应链 | 依赖 / 桌面壳漏洞 | 远程代码执行 |
 
 ### 1.3 信任边界
 
 ```text
 [不可信] 用户导入的文件、网页、搜索结果、图片中的文字
 [半可信] 模型输出（可能被注入/幻觉）
-[可信] 主进程代码、校验后的工具参数、数据根目录内的自有文件
+[可信] 后端代码、校验后的工具参数、数据根目录内的自有文件
 [最敏感] API Key、咨询记忆、私钥/密码
 ```
 
 **核心规则**：外部内容永远是数据，不是指令；模型输出永远要校验，不是命令。
 
-## 2. Electron 安全基线
+## 2. 运行环境安全基线
 
-- `contextIsolation: true`
-- `nodeIntegration: false`
-- `sandbox: true`（如 preload 兼容）
-- `webSecurity: true`
-- 禁止 `enableRemoteModule`（已移除）
-- `will-navigate` / `setWindowOpenHandler`：拒绝外部导航；外链走系统浏览器
-- CSP：
+### 2.1 当前实现（P0.5，Node 服务 + 浏览器）
 
-```text
-default-src 'self';
-script-src 'self';
-style-src 'self' 'unsafe-inline';
-img-src 'self' data: blob:;
-font-src 'self' data:;
-connect-src 'self' https://api.deepseek.com;
-```
+- 服务只监听 `127.0.0.1`，没有鉴权：**不要用端口转发 / 反向代理暴露到局域网或公网**；多用户机器上同机其他用户也能访问该端口，需自行评估。
+- 静态文件托管做路径规范化并拒绝越出 `out/renderer` 的路径；请求体上限 5 MB。
+- 前端 CSP 写在 `src/renderer/index.html`：`default-src 'self'`，`connect-src` 仅同源和 `localhost`；模型调用在后端发出，浏览器不直连 DeepSeek。
+- 前端不接触文件系统，不持有 Key（只知道 `hasApiKey`）。
+- 没有远程脚本，没有 iframe。
 
-- 不允许渲染进程加载远程 JS/iframe。
+### 2.2 桌面壳基线（P1 选定壳之后适用）
+
+- 渲染层隔离：禁用 Node 集成，开启上下文隔离与沙箱。
+- 拒绝外部导航；外链走系统浏览器，协议白名单。
+- CSP：只允许自身脚本；`connect-src` 仅允许自身和模型域名。
 - 单实例锁；第二实例聚焦已有窗口。
-- 自动更新（后续）必须校验签名/哈希。
 
 ## 3. 文件访问
 
@@ -71,9 +65,9 @@ connect-src 'self' https://api.deepseek.com;
 ### 3.2 规则
 
 - 所有路径 `path.resolve` 后必须仍在允许根内；拒绝 `..`、符号链接逃逸、UNC 异常路径。
-- 不接受渲染进程传来的任意绝对路径；只接受：
+- 不接受前端传来的任意绝对路径；只接受：
   - 数据根内相对路径；或
-  - 主进程保存的“用户已选择”句柄。
+  - 后端保存的“用户已选择”句柄。
 - 导入文件只读；解析结果写数据根，不覆盖源文件。
 - 删除/覆盖前确认 + 备份。
 - 文件名过滤：不允许控制字符/NUL；长度限制。
@@ -130,12 +124,18 @@ connect-src 'self' https://api.deepseek.com;
 
 ## 6. API Key
 
-- 用户输入 → 主进程 → `safeStorage.encryptString`（Windows DPAPI）→ 写 `config/secrets.enc`。
-- 渲染进程永远拿不到明文 Key；只显示“已配置/后四位”。
-- Key 不写日志、不进导出、不进 Git、不进崩溃报告。
-- 测试 Key：主进程发一个最小请求；失败返回错误码，不回显 Key。
+**当前（P0.5）**
+
+- 用户在设置里输入 → `POST /api/settings` → 只存在 Node 进程内存；**不落盘**，重启后要重填。
+- 前端永远拿不到 Key，只知道“是否已配置”。
+- Key 不写日志、不进 `config/web-settings.json`、不进 Git。
+- “清除 Key”直接清空内存变量。
+
+**规划（P1+，需要持久化时）**
+
+- 优先用系统凭据库：Windows 凭据管理器 / DPAPI，Linux libsecret（Secret Service）；没有可用凭据库时回退为“仅内存”或用户口令加密文件，**不写明文**。
+- Key 不进导出、不进崩溃报告；错误堆栈和截图中不出现 Authorization header。
 - 泄露处理：设置里“撤销并清除”；提示去 DeepSeek 平台 revoke。
-- 不在截图/错误堆栈中出现 Authorization header。
 
 ## 7. 数据分类与隐私
 
@@ -144,7 +144,7 @@ connect-src 'self' https://api.deepseek.com;
 | public | 设置、界面偏好 | SQLite | 部分 | 可 |
 | internal | 聊天、日程、学习 | SQLite/Markdown | 是（必要） | 脱敏 |
 | sensitive | 心理/健康/家庭/亲密 | Markdown/SQLite | 仅咨询房间/授权 | 不 |
-| secret | API Key、密码 | safeStorage/哈希 | 否 | 否 |
+| secret | API Key、密码 | 系统凭据库 / 哈希 | 否 | 否 |
 
 - 隐私面板：告诉用户“这条消息会发送什么/存什么”。
 - 不上传遥测；不接第三方分析 SDK。
@@ -192,8 +192,8 @@ connect-src 'self' https://api.deepseek.com;
 
 - 锁定版本（package-lock.json 提交）。
 - 不引入来源不明的包；优先官方/高星/维护活跃。
-- `npm audit` 定期；Electron 版本跟进安全更新。
-- 不在 `postinstall` 执行远程脚本（除 electron-rebuild 等必要）。
+- `npm audit` 定期；选定桌面壳后跟进其安全更新。
+- 不在 `postinstall` 执行远程脚本。
 - 打包产物校验哈希；自动更新需签名（后续）。
 
 ## 11. 事故响应
@@ -208,8 +208,8 @@ connect-src 'self' https://api.deepseek.com;
 
 ## 12. 安全验收清单
 
-- [ ] 渲染进程无法直接 `require('fs')`/`child_process`。
-- [ ] 所有 IPC 有 Zod 校验。
+- [ ] 前端无法直接访问文件系统 / `child_process`。
+- [ ] 所有后端入口有 Zod 校验（P0.5 暂无）。
 - [ ] 路径穿越测试通过（`..`、符号链接、UNC）。
 - [ ] 恶意 PDF/网页/图片中的指令不会被执行。
 - [ ] 删除/覆盖/清空需要确认；有备份。
@@ -219,4 +219,5 @@ connect-src 'self' https://api.deepseek.com;
 - [ ] 调试 Patch 不能修改安全/内容/危机/能力边界；可预览/回滚。
 - [ ] 外链协议白名单。
 - [ ] CSP 生效；无远程脚本。
-- [ ] `npm audit` 无高危；Electron 为受支持版本。
+- [ ] `npm audit` 无高危；桌面壳（如采用）为受支持版本。
+- [ ] 服务仅监听回环地址。
