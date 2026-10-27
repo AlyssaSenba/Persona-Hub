@@ -56,6 +56,7 @@ persona.md                 人设（只读，提示词核心）
 server/
   index.mts                HTTP 服务、路由、DeepSeek 调用、patch 存取
   persona.ts               系统提示词 / patch 提案提示词 / 预览提示词
+  topics.ts                “挑话题”的随机方向与触发判断（wantsTopic）
 src/
   shared/types.ts          前后端共享类型（LabApi、设置、patch、事件）
   renderer/
@@ -87,7 +88,7 @@ out/                       构建产物（git 忽略）
 3. 演示模式或未配置 Key：本地 `demoReply` 逐字符块推送；否则 `streamDeepSeek` 转发 DeepSeek 流。
 4. 事件 `chunk` / `done` / `error` 逐条推给 UI；`POST /api/cancel` 通过 `AbortController` 中止；客户端断开也会中止。
 5. 对话中修改资料只影响本会话（提示词每轮重建）；持久化要回设置页保存——P0.5 没有工具调用，模型无法写设置。
-6. 每轮聊天会随机注入一条【本轮倾向】（挑话题方向：想法/日常/小事/假设），避免模型总用同一种开场；预览接口不注入，保证前后对比一致。
+6. 只有用户把选择权交出来时（正则匹配“挑个话题”“接下来聊什么”等），才随机注入一条【本轮倾向】（想法/日常/小事/假设）；普通应答不注入，避免每轮硬开话题。预览接口从不注入，保证前后对比一致。
 7. 提示词只用 `persona.md` 的正文；`## 18. 版本` 段（变更记录）不注入，避免模型复述内部机制。
 
 ## A6. 人设调试（patch）流程

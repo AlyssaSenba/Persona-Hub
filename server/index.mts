@@ -24,6 +24,7 @@ import {
   buildPreviewSystemPrompt,
   buildSystemPrompt,
 } from './persona.ts';
+import { randomTopicHint, wantsTopic } from './topics.ts';
 
 const PORT = Number(process.env.PORT) || 4173;
 const ROOT = process.cwd();
@@ -251,18 +252,6 @@ function activatePatch(patchId: string): LabSettings {
   return settings;
 }
 
-/** 每轮随机挑一个“挑话题”的方向，避免模型总是用同一种开场。 */
-const TOPIC_HINTS = [
-  '抛一个自己的想法或观察',
-  '问一句日常：吃没吃饭、天气、今天累不累',
-  '问一件具体的小事：今天遇到的、刚做完的',
-  '问一个假设题，或者一个“没用但好玩”的问题',
-];
-
-function randomTopicHint(): string {
-  return TOPIC_HINTS[Math.floor(Math.random() * TOPIC_HINTS.length)];
-}
-
 function demoReply(text: string): string {
   if (/累|疲惫|困|加班/.test(text)) return '嗯，辛苦了。先歇着，不用急着回我。';
   if (/哄|抱|安慰/.test(text)) return '好啊。想听正经的，还是想听我瞎说？';
@@ -487,8 +476,12 @@ async function handleChat(req: http.IncomingMessage, res: http.ServerResponse, i
         await delay(24);
       }
     } else {
+      const topicHint = wantsTopic(input.text) ? randomTopicHint() : undefined;
       const messages = [
-        { role: 'system', content: buildSystemPrompt(persona, settings, activePatches(), randomTopicHint()) },
+        {
+          role: 'system',
+          content: buildSystemPrompt(persona, settings, activePatches(), topicHint),
+        },
         ...toHistory(input.history),
         { role: 'user', content: input.text },
       ];
