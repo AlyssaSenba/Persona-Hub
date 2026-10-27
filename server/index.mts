@@ -3,18 +3,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import type {
-  ChatMessage,
-  ChatSendInput,
-  DebugApplyInput,
-  DebugPreviewInput,
-  DebugProposeInput,
-  DebugRevertInput,
-  LabSettings,
-  PersonaPatch,
-  PersonaPatchProposal,
-  SettingsSaveInput,
-  UserGender,
+import {
+  FAMILY_ROLE_OPTIONS,
+  isFamilyRoleAllowed,
+  type ChatMessage,
+  type ChatSendInput,
+  type DebugApplyInput,
+  type DebugPreviewInput,
+  type DebugProposeInput,
+  type DebugRevertInput,
+  type FamilyRole,
+  type LabSettings,
+  type PersonaPatch,
+  type PersonaPatchProposal,
+  type SettingsSaveInput,
+  type UserGender,
 } from '../src/shared/types.ts';
 import {
   buildPatchProposalPrompt,
@@ -41,10 +44,24 @@ const DEFAULT_SETTINGS: LabSettings = {
   userNotes: '',
   addressPreference: 'you',
   relationship: 'couple',
+  familyRole: 'unspecified',
+  familyAddress: '',
   safeWord: '',
   demoMode: true,
   activePatchIds: [],
 };
+
+const FAMILY_ROLES: FamilyRole[] = [
+  'unspecified',
+  'custom',
+  ...FAMILY_ROLE_OPTIONS.map((option) => option.value),
+];
+
+/** 未知值回落为“不指定”；和用户性别不匹配的称呼也回落，避免提示词自相矛盾。 */
+function normalizeFamilyRole(value: unknown, gender: UserGender): FamilyRole {
+  const role = FAMILY_ROLES.includes(value as FamilyRole) ? (value as FamilyRole) : 'unspecified';
+  return isFamilyRoleAllowed(role, gender) ? role : 'unspecified';
+}
 
 const USER_GENDERS: UserGender[] = ['unspecified', 'male', 'female', 'none'];
 
@@ -113,28 +130,35 @@ function writeJson(file: string, value: unknown): void {
 
 function loadSettings(): LabSettings {
   const raw = readJson<Partial<LabSettings>>(SETTINGS_FILE, {});
+  const userGender = normalizeUserGender(raw.userGender);
   return {
     ...DEFAULT_SETTINGS,
     ...raw,
-    userGender: normalizeUserGender(raw.userGender),
+    userGender,
     nationality: clampText(raw.nationality, 40),
     userNotes: clampText(raw.userNotes, 500),
+    familyRole: normalizeFamilyRole(raw.familyRole, userGender),
+    familyAddress: clampText(raw.familyAddress, 12),
     activePatchIds: Array.isArray(raw.activePatchIds) ? raw.activePatchIds : [],
   };
 }
 
 function saveSettings(input: SettingsSaveInput): LabSettings {
   const current = loadSettings();
+  const userGender = normalizeUserGender(input.userGender ?? current.userGender);
+  const relationship = input.relationship ?? current.relationship;
   const next: LabSettings = {
     aiName: String(input.aiName ?? current.aiName).trim() || DEFAULT_SETTINGS.aiName,
     aiNickname: String(input.aiNickname ?? current.aiNickname).trim(),
     userName: String(input.userName ?? current.userName).trim(),
     userNickname: String(input.userNickname ?? current.userNickname).trim(),
-    userGender: normalizeUserGender(input.userGender ?? current.userGender),
+    userGender,
     nationality: clampText(input.nationality ?? current.nationality, 40),
     userNotes: clampText(input.userNotes ?? current.userNotes, 500),
+    familyRole: normalizeFamilyRole(input.familyRole ?? current.familyRole, userGender),
+    familyAddress: clampText(input.familyAddress ?? current.familyAddress, 12),
     addressPreference: input.addressPreference ?? current.addressPreference,
-    relationship: input.relationship ?? current.relationship,
+    relationship,
     safeWord: String(input.safeWord ?? current.safeWord).trim(),
     demoMode: Boolean(input.demoMode),
     activePatchIds: current.activePatchIds,

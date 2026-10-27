@@ -25,6 +25,8 @@ const DEFAULT_FORM: LabSettings = {
   userNotes: '',
   addressPreference: 'you',
   relationship: 'couple',
+  familyRole: 'unspecified',
+  familyAddress: '',
   safeWord: '',
   demoMode: true,
   activePatchIds: [],

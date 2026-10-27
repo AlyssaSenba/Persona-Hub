@@ -1,4 +1,9 @@
-import type { LabSettings, PersonaPatch, PersonaPatchProposal } from '@shared/types';
+import {
+  familyRoleLabel,
+  type LabSettings,
+  type PersonaPatch,
+  type PersonaPatchProposal,
+} from '../src/shared/types.ts';
 
 const RELATIONSHIP_LABEL: Record<LabSettings['relationship'], string> = {
   couple: '情侣',
@@ -15,6 +20,13 @@ const GENDER_LABEL: Record<LabSettings['userGender'], string> = {
   none: '无性别',
 };
 
+/** 关系为家人时，AI 对用户的称呼；没设置就是空字符串。 */
+function familyCall(settings: LabSettings): string {
+  if (settings.relationship !== 'family') return '';
+  if (settings.familyRole === 'custom') return settings.familyAddress.trim();
+  return familyRoleLabel(settings.familyRole);
+}
+
 function profileLines(settings: LabSettings): string[] {
   const lines: string[] = [];
   if (settings.nationality.trim()) {
@@ -29,8 +41,27 @@ function profileLines(settings: LabSettings): string[] {
   return lines;
 }
 
+/** 只给表格/占位用的短标签（“你 / 名字 / 姐姐”），完整规则由 addressRule 给。 */
+function addressLabel(settings: LabSettings): string {
+  const family = familyCall(settings);
+  if (family) return family;
+  if (settings.addressPreference === 'formal') return '您';
+  if (settings.addressPreference === 'name' && settings.userName.trim()) {
+    return settings.userName.trim();
+  }
+  if (settings.addressPreference === 'nickname') {
+    const nickname = settings.userNickname.trim() || settings.userName.trim();
+    if (nickname) return nickname;
+  }
+  return '你';
+}
+
 function addressRule(settings: LabSettings): string {
   const { addressPreference, userName, userNickname } = settings;
+  const family = familyCall(settings);
+  if (family) {
+    return `在家人关系里，用“${family}”称呼用户；也可以直接用“你”，但不要每句都叫。`;
+  }
   if (addressPreference === 'formal') return '用“您”称呼用户；保持尊重，但不疏远。';
   if (addressPreference === 'name' && userName) {
     return `可以用用户的名字“${userName}”或“你”；不要每句都叫名字。`;
@@ -66,7 +97,7 @@ export function fillPersona(personaText: string, settings: LabSettings): string 
     .replaceAll('{{AI_NICKNAME}}', aiNickname)
     .replaceAll('{{USER_NAME}}', userName)
     .replaceAll('{{USER_NICKNAME}}', userNickname)
-    .replaceAll('{{USER_ADDRESS}}', addressRule(settings))
+    .replaceAll('{{USER_ADDRESS}}', addressLabel(settings))
     .replaceAll('{{RELATIONSHIP}}', RELATIONSHIP_LABEL[settings.relationship]);
 }
 
@@ -90,9 +121,15 @@ export function buildSystemPrompt(
     `- 你的名字：${settings.aiName.trim() || '伙伴'}`,
     nicknameLine,
     `- 你和用户的关系：${relationship}`,
+    ...(familyCall(settings)
+      ? [
+          `- 家人关系里的称呼：你对用户叫“${familyCall(settings)}”（只是称呼，不改变关系，也不涉及恋爱）`,
+        ]
+      : []),
     `- 用户的名字：${settings.userName.trim() || '（未设置）'}`,
     `- 用户的昵称：${settings.userNickname.trim() || '（未设置）'}`,
     `- 称呼规则：${addressRule(settings)}`,
+    '- 用户要求改称呼时：设置里已经定好就按设置来，并说明这是设定；没定就直接接受、本轮内保持，不要用“这不是我认的关系”拒绝。',
     ...profileLines(settings),
     '',
     '【用户资料怎么用】',

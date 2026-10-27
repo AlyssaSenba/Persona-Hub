@@ -54,6 +54,11 @@
 type AddressPreference = 'you' | 'name' | 'nickname' | 'formal';
 type Relationship = 'couple' | 'friend' | 'family' | 'mentor' | 'custom';
 type UserGender = 'unspecified' | 'male' | 'female' | 'none';
+type FamilyRole =
+  | 'unspecified' | 'mother' | 'father'
+  | 'elder_sister' | 'elder_brother'
+  | 'younger_sister' | 'younger_brother'
+  | 'daughter' | 'son' | 'custom';
 
 interface LabSettings {
   aiName: string; aiNickname: string;
@@ -63,6 +68,8 @@ interface LabSettings {
   userNotes: string;           // 特殊注意事项，截断 500 字
   addressPreference: AddressPreference;
   relationship: Relationship;
+  familyRole: FamilyRole;      // 仅 family 生效；与性别不匹配时回落 unspecified
+  familyAddress: string;       // 自定义称呼，截断 12 字
   safeWord: string;
   demoMode: boolean;
   activePatchIds: string[];
@@ -100,6 +107,7 @@ interface PersonaPatch extends PersonaPatchProposal {
 - 保存：`POST /api/settings` 提交 `SettingsSaveInput`，缺省字段沿用当前值；只写 `config/web-settings.json`，不含 Key。
 - 生效：系统提示词每轮重建，保存后下一轮聊天立即生效；对话里临时改的说法只在本轮会话内生效，**不会自动写回设置**（P0.5 没有工具调用）。
 - 兼容：旧设置文件缺少这些字段时补默认值；JSON 带 UTF-8 BOM 也能正常读取。
+- 家人称呼：`familyRole` 只在 `relationship === 'family'` 时生效。`female` 接受妈妈/姐姐/妹妹/女儿，`male` 接受爸爸/哥哥/弟弟/儿子，`none` / `unspecified` 接受全部，另有 `custom` + `familyAddress`；与性别不匹配的值在 `loadSettings` / `saveSettings` 时回落为 `unspecified`。
 
 ---
 

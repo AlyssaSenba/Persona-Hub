@@ -32,6 +32,7 @@
 - 用户资料（来自 `关于用户.txt`）：设置页新增“关于你（选填）”——国籍/所在地、性别（男/女/无性别/不填）、特殊注意事项；写入 `config/web-settings.json`，并拼进系统提示词。资料只用于称呼/语气/分寸，没填的不猜；对话里改的下一轮生效，但不自动写回设置。
 - 设置文件读取容错：`config/web-settings.json` 带 UTF-8 BOM 时不再整份回落到默认值；旧文件缺新字段时自动补默认值。
 - 人设 v0.3 已生效：4 个调试 patch 全部停用（文件保留），规则并入 `persona.md` 正文与提示词的【表达校准】段；设置页“persona patch”分组会列出已停用的 patch，可一键重新启用（`POST /api/debug/activate`）。
+- 家人称呼：关系为“家人”时设置页出现“他该叫你什么”子选项（妈妈/爸爸/姐姐/哥哥/妹妹/弟弟/女儿/儿子/自定义），选项按用户性别筛选，性别不填或“无性别”时给全部；接进提示词的称呼规则，与性别不匹配的旧值会被服务端回落为“不指定”。家人模式下 `{{RELATIONSHIP}}` 与 persona 表格不再写死“情侣”。
 
 ### 1.3 本机 Tauri 2 工具链（只装工具，没有生成 Tauri 项目）
 
@@ -50,6 +51,7 @@
 - 临时实例验证（`PORT=4199` + 独立临时工作目录，不动正在用的 `config/`）：旧设置文件缺字段自动补默认值、带 BOM 的设置文件可正常读取、中文资料往返正常、`userNotes` 超长截断到 500 字。
 - 提示词自检（脚本调用 `buildSystemPrompt`）：含【表达校准】段、不再拼接 patch 段、撒娇示例已替换、`{{…}}` 占位符无残留。
 - patch 状态：`activePatchIds` 为空、4 个 patch 均为 inactive；`POST /api/debug/activate` 的停用→启用往返测试通过。
+- 家人称呼：`female + 妈妈`、`male + 爸爸`、`none + 妈妈`、`unspecified + 女儿` 均按预期保留；`male + 妈妈` 回落为“不指定”（临时实例验证，未动线上设置）。
 - 本地服务：`GET /api/settings` 返回 `hasApiKey=true`、`keySource=env`。
 - 真实 DeepSeek 请求：通过（通过 `.env` 读取 Key，未打印 Key）。
 - `tauri info`：WebView2 / MSVC / rustc / cargo / rustup / Rust toolchain 全部通过。

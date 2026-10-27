@@ -73,7 +73,8 @@ out/                       构建产物（git 忽略）
 
 ## A4. 运行时数据与密钥
 
-- 设置：`config/web-settings.json`（称呼、关系、安全词、演示模式、已启用 patch id、**用户资料**：`userGender` / `nationality` / `userNotes`）。**不含 API Key。**
+- 设置：`config/web-settings.json`（称呼、关系、安全词、演示模式、已启用 patch id、**用户资料**：`userGender` / `nationality` / `userNotes`、**家人称呼**：`familyRole` / `familyAddress`）。**不含 API Key。**
+- 家人称呼：只在 `relationship === 'family'` 时进提示词；选项按用户性别筛选（女/男各一组，`none` 与 `unspecified` 给全部），与性别不匹配的值回落为 `unspecified`；`familyAddress` 截断 12 字。
 - 用户资料：`userGender` 为 `unspecified | male | female | none`（`none` = 无性别），`nationality` 截断 40 字，`userNotes` 截断 500 字；旧设置文件缺字段时由 `loadSettings` 补默认值，读 JSON 时会去掉 BOM（否则整份设置会静默回落到默认值）。
 - patch：`config/persona-patches/<uuid>.json`，一个 patch 一个文件；停用 = 从 `activePatchIds` 移除，文件保留；重新启用 = 把 id 加回（`POST /api/debug/activate`）。
 - **API Key 不进 `config/`**：优先从根目录 `.env` 每次请求实时读取；设置页临时填的只保存在 Node 进程内存、不落盘、不写日志。渲染层只得到 `hasApiKey` 与 `keySource`。

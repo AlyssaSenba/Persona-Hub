@@ -1,4 +1,5 @@
 import type { LabSettings, PersonaPatch, PublicSettings } from '@shared/types';
+import { familyRolesFor, isFamilyRoleAllowed } from '@shared/types';
 
 interface Props {
   settings: PublicSettings;
@@ -75,7 +76,48 @@ export function SettingsModal(props: Props) {
                 <span>年龄感</span>
                 <input value="21–27（人设内固定）" readOnly />
               </label>
+              {form.relationship === 'family' ? (
+                <>
+                  <label className="field">
+                    <span>他该叫你什么</span>
+                    <select
+                      value={form.familyRole}
+                      onChange={(event) =>
+                        props.onFormChange({
+                          familyRole: event.target.value as LabSettings['familyRole'],
+                        })
+                      }
+                    >
+                      <option value="unspecified">不指定（用“你”或名字）</option>
+                      {familyRolesFor(form.userGender).map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                      <option value="custom">自定义</option>
+                    </select>
+                  </label>
+                  {form.familyRole === 'custom' ? (
+                    <label className="field">
+                      <span>自定义称呼</span>
+                      <input
+                        value={form.familyAddress}
+                        onChange={(event) =>
+                          props.onFormChange({ familyAddress: event.target.value })
+                        }
+                        placeholder="例如：阿姐"
+                        maxLength={12}
+                      />
+                    </label>
+                  ) : null}
+                </>
+              ) : null}
             </div>
+            {form.relationship === 'family' ? (
+              <p className="hint">
+                称呼选项按“关于你”里的性别筛选；性别不填或选“无性别”时给全部。只影响称呼，不改关系，也不会变成恋爱设定。
+              </p>
+            ) : null}
           </section>
 
           <section className="form-section">
@@ -133,11 +175,14 @@ export function SettingsModal(props: Props) {
                 <span>性别</span>
                 <select
                   value={form.userGender}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const userGender = event.target.value as LabSettings['userGender'];
+                    const keepRole = isFamilyRoleAllowed(form.familyRole, userGender);
                     props.onFormChange({
-                      userGender: event.target.value as LabSettings['userGender'],
-                    })
-                  }
+                      userGender,
+                      ...(keepRole ? {} : { familyRole: 'unspecified' as const, familyAddress: '' }),
+                    });
+                  }}
                 >
                   <option value="unspecified">不填</option>
                   <option value="male">男</option>
