@@ -126,10 +126,12 @@
 
 **当前（P0.5）**
 
-- 用户在设置里输入 → `POST /api/settings` → 只存在 Node 进程内存；**不落盘**，重启后要重填。
-- 前端永远拿不到 Key，只知道“是否已配置”。
+- 两种来源，**`.env` 优先**：
+  - 根目录 `.env` 的 `DEEPSEEK_API_KEY`：Node 每次请求实时读取，改完不用重启；`.env` 已 gitignore，`.env.example` 只含占位符。
+  - 设置页输入 → `POST /api/settings` → 只存在 Node 进程内存；**不落盘**，重启后要重填。
+- 前端永远拿不到 Key，只知道“是否已配置”（`hasApiKey`）和来源（`keySource`）。
 - Key 不写日志、不进 `config/web-settings.json`、不进 Git。
-- “清除 Key”直接清空内存变量。
+- “清除 Key”直接清空内存变量（不影响 `.env`）。
 
 **规划（P1+，需要持久化时）**
 
