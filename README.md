@@ -11,6 +11,7 @@
 - 文档：PRD、架构、记忆、安全、内容政策、成本、决策、调研都已定稿到当前版本。
 
 - 原始需求：见根目录 `初步要求.txt`
+- 用户资料调查需求：见根目录 `关于用户.txt`
 - 整理后的最终要求：见 [`docs/PRD.md`](docs/PRD.md)
 - 已定决策与理由：见 [`docs/DECISIONS.md`](docs/DECISIONS.md)
 
@@ -162,6 +163,7 @@ DeepSeek Flash 很便宜；按正常使用（每天 20–50 轮），约 **¥0.2
 | [`persona.md`](persona.md) | 初版人设 v0.2（男/成熟/冷静/高智/外冷内热/21–27/情侣），待你确认/修改 |
 | [`docs/PERSONA_TEMPLATE.md`](docs/PERSONA_TEMPLATE.md) | 人设模板（用于后续补充/改版） |
 | [`docs/QUICK_START.md`](docs/QUICK_START.md) | 小白术语、API Key 教程、运行方式、FAQ |
+| [`docs/STATUS.md`](docs/STATUS.md) | 当前进度、下一步、交接备注 |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | 决策记录与理由 |
 | [`docs/RESEARCH.md`](docs/RESEARCH.md) | 社区调研、参考项目、采纳/拒绝的理由 |
 
