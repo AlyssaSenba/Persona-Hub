@@ -52,10 +52,14 @@
 ```ts
 type AddressPreference = 'you' | 'name' | 'nickname' | 'formal';
 type Relationship = 'couple' | 'friend' | 'family' | 'mentor' | 'custom';
+type UserGender = 'unspecified' | 'male' | 'female' | 'none';
 
 interface LabSettings {
   aiName: string; aiNickname: string;
   userName: string; userNickname: string;
+  userGender: UserGender;      // none = 无性别；unspecified = 没填
+  nationality: string;         // 截断 40 字
+  userNotes: string;           // 特殊注意事项，截断 500 字
   addressPreference: AddressPreference;
   relationship: Relationship;
   safeWord: string;
@@ -86,6 +90,14 @@ interface PersonaPatch extends PersonaPatchProposal {
 - `apply`：写 `config/persona-patches/<uuid>.json`（`rules` 至多 12 条、`examples` 至多 6 条），并加入 `activePatchIds`。
 - `revert`：仅从 `activePatchIds` 移除，patch 文件保留。
 - 设置文件 `config/web-settings.json` 不含 API Key。
+
+## A6. 用户资料字段
+
+- `userGender`：`unspecified`（不填）/ `male` / `female` / `none`（无性别）；未知值回落为 `unspecified`。
+- `nationality`：自由文本，服务端截断 40 字；`userNotes`（特殊注意事项）截断 500 字。
+- 保存：`POST /api/settings` 提交 `SettingsSaveInput`，缺省字段沿用当前值；只写 `config/web-settings.json`，不含 Key。
+- 生效：系统提示词每轮重建，保存后下一轮聊天立即生效；对话里临时改的说法只在本轮会话内生效，**不会自动写回设置**（P0.5 没有工具调用）。
+- 兼容：旧设置文件缺少这些字段时补默认值；JSON 带 UTF-8 BOM 也能正常读取。
 
 ---
 

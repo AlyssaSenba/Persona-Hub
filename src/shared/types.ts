@@ -2,11 +2,17 @@ export type AddressPreference = 'you' | 'name' | 'nickname' | 'formal';
 
 export type Relationship = 'couple' | 'friend' | 'family' | 'mentor' | 'custom';
 
+/** `none` 表示用户选择“无性别”；`unspecified` 表示没填，模型不该猜。 */
+export type UserGender = 'unspecified' | 'male' | 'female' | 'none';
+
 export interface LabSettings {
   aiName: string;
   aiNickname: string;
   userName: string;
   userNickname: string;
+  userGender: UserGender;
+  nationality: string;
+  userNotes: string;
   addressPreference: AddressPreference;
   relationship: Relationship;
   safeWord: string;

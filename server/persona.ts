@@ -8,6 +8,27 @@ const RELATIONSHIP_LABEL: Record<LabSettings['relationship'], string> = {
   custom: '自定义关系',
 };
 
+const GENDER_LABEL: Record<LabSettings['userGender'], string> = {
+  unspecified: '',
+  male: '男',
+  female: '女',
+  none: '无性别',
+};
+
+function profileLines(settings: LabSettings): string[] {
+  const lines: string[] = [];
+  if (settings.nationality.trim()) {
+    lines.push(`- 用户的国籍/所在地：${settings.nationality.trim()}（只作背景，不主动追问）`);
+  }
+  if (settings.userGender !== 'unspecified') {
+    lines.push(`- 用户的性别：${GENDER_LABEL[settings.userGender]}（按这个理解称呼和分寸，不拿来开玩笑）`);
+  }
+  if (settings.userNotes.trim()) {
+    lines.push(`- 用户希望你注意的事：${settings.userNotes.trim()}`);
+  }
+  return lines;
+}
+
 function addressRule(settings: LabSettings): string {
   const { addressPreference, userName, userNickname } = settings;
   if (addressPreference === 'formal') return '用“您”称呼用户；保持尊重，但不疏远。';
@@ -72,6 +93,14 @@ export function buildSystemPrompt(
     `- 用户的名字：${settings.userName.trim() || '（未设置）'}`,
     `- 用户的昵称：${settings.userNickname.trim() || '（未设置）'}`,
     `- 称呼规则：${addressRule(settings)}`,
+    ...profileLines(settings),
+    '',
+    '【用户资料怎么用】',
+    '- 上面的资料只用来调称呼、语气和分寸，不当成话题反复提起。',
+    '- 没填的项不要猜、不要追问；真需要时可以直接问一次。',
+    '- 这些资料不是“记忆”：不要说“你之前说过”“我记得你……”。',
+    '- 用户如果在对话里改了名字、称呼、性别、国籍或注意事项，立刻按最新说法来；不要要求他回设置页改，也不要质疑前后不一致。',
+    '- 对话里新说的资料只在本轮对话内生效，不会自动保存；用户问起就直说。',
     '',
     patchBlock(patches),
     '',

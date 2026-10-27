@@ -14,6 +14,7 @@ import type {
   PersonaPatch,
   PersonaPatchProposal,
   SettingsSaveInput,
+  UserGender,
 } from '../src/shared/types.ts';
 import {
   buildPatchProposalPrompt,
@@ -35,12 +36,28 @@ const DEFAULT_SETTINGS: LabSettings = {
   aiNickname: '',
   userName: '',
   userNickname: '',
+  userGender: 'unspecified',
+  nationality: '',
+  userNotes: '',
   addressPreference: 'you',
   relationship: 'couple',
   safeWord: '',
   demoMode: true,
   activePatchIds: [],
 };
+
+const USER_GENDERS: UserGender[] = ['unspecified', 'male', 'female', 'none'];
+
+function normalizeUserGender(value: unknown): UserGender {
+  return USER_GENDERS.includes(value as UserGender) ? (value as UserGender) : 'unspecified';
+}
+
+/** 用户资料是自由文本，截断以避免把提示词预算吃光。 */
+function clampText(value: unknown, maxLength: number): string {
+  return String(value ?? '')
+    .trim()
+    .slice(0, maxLength);
+}
 
 let apiKey: string | null = null;
 const controllers = new Map<string, AbortController>();
@@ -82,7 +99,8 @@ function ensureDirs(): void {
 function readJson<T>(file: string, fallback: T): T {
   try {
     if (!fs.existsSync(file)) return fallback;
-    return JSON.parse(fs.readFileSync(file, 'utf8')) as T;
+    const text = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
+    return JSON.parse(text) as T;
   } catch {
     return fallback;
   }
@@ -98,6 +116,9 @@ function loadSettings(): LabSettings {
   return {
     ...DEFAULT_SETTINGS,
     ...raw,
+    userGender: normalizeUserGender(raw.userGender),
+    nationality: clampText(raw.nationality, 40),
+    userNotes: clampText(raw.userNotes, 500),
     activePatchIds: Array.isArray(raw.activePatchIds) ? raw.activePatchIds : [],
   };
 }
@@ -109,6 +130,9 @@ function saveSettings(input: SettingsSaveInput): LabSettings {
     aiNickname: String(input.aiNickname ?? current.aiNickname).trim(),
     userName: String(input.userName ?? current.userName).trim(),
     userNickname: String(input.userNickname ?? current.userNickname).trim(),
+    userGender: normalizeUserGender(input.userGender ?? current.userGender),
+    nationality: clampText(input.nationality ?? current.nationality, 40),
+    userNotes: clampText(input.userNotes ?? current.userNotes, 500),
     addressPreference: input.addressPreference ?? current.addressPreference,
     relationship: input.relationship ?? current.relationship,
     safeWord: String(input.safeWord ?? current.safeWord).trim(),

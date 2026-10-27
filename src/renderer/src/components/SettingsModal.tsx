@@ -116,6 +116,50 @@ export function SettingsModal(props: Props) {
           </section>
 
           <section className="form-section">
+            <h3>关于你（选填）</h3>
+            <div className="field-grid">
+              <label className="field">
+                <span>国籍 / 所在地</span>
+                <input
+                  value={form.nationality}
+                  onChange={(event) => props.onFormChange({ nationality: event.target.value })}
+                  placeholder="例如：中国"
+                  maxLength={40}
+                />
+              </label>
+              <label className="field">
+                <span>性别</span>
+                <select
+                  value={form.userGender}
+                  onChange={(event) =>
+                    props.onFormChange({
+                      userGender: event.target.value as LabSettings['userGender'],
+                    })
+                  }
+                >
+                  <option value="unspecified">不填</option>
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                  <option value="none">无性别</option>
+                </select>
+              </label>
+              <label className="field field-wide">
+                <span>特殊注意事项</span>
+                <textarea
+                  value={form.userNotes}
+                  onChange={(event) => props.onFormChange({ userNotes: event.target.value })}
+                  placeholder="例如：怕吵；被追问会烦；某些话题请先问一句"
+                  rows={3}
+                  maxLength={500}
+                />
+              </label>
+            </div>
+            <p className="hint">
+              只用于调整称呼、语气和分寸，不会当话题反复提。聊天里说“叫我某某”会立刻生效；要长期保留，回这里保存一次。
+            </p>
+          </section>
+
+          <section className="form-section">
             <h3>调试入口</h3>
             <label className="field">
               <span>安全词（可选）</span>

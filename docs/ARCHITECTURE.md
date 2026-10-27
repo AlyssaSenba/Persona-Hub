@@ -73,17 +73,19 @@ out/                       构建产物（git 忽略）
 
 ## A4. 运行时数据与密钥
 
-- 设置：`config/web-settings.json`（称呼、关系、安全词、演示模式、已启用 patch id）。**不含 API Key。**
+- 设置：`config/web-settings.json`（称呼、关系、安全词、演示模式、已启用 patch id、**用户资料**：`userGender` / `nationality` / `userNotes`）。**不含 API Key。**
+- 用户资料：`userGender` 为 `unspecified | male | female | none`（`none` = 无性别），`nationality` 截断 40 字，`userNotes` 截断 500 字；旧设置文件缺字段时由 `loadSettings` 补默认值，读 JSON 时会去掉 BOM（否则整份设置会静默回落到默认值）。
 - patch：`config/persona-patches/<uuid>.json`，一个 patch 一个文件；回滚 = 从 `activePatchIds` 移除，文件保留。
-- **API Key 只保存在 Node 进程内存**，不落盘、不写日志；重启服务要重填。渲染层只得到 `hasApiKey`。
+- **API Key 不进 `config/`**：优先从根目录 `.env` 每次请求实时读取；设置页临时填的只保存在 Node 进程内存、不落盘、不写日志。渲染层只得到 `hasApiKey` 与 `keySource`。
 - 路径基准是启动时的工作目录（`process.cwd()`），请在项目根目录运行。
 
 ## A5. 聊天流程
 
 1. UI 调用 `window.lab.sendChat`，`POST /api/chat`，响应为 SSE。
-2. 服务端用 `persona.md` + 设置 + 已启用 patch 组装系统提示词（`buildSystemPrompt`），拼上最近 20 条历史（过滤 `[错误]` 开头的消息）。
+2. 服务端用 `persona.md` + 设置（含用户资料）+ 已启用 patch 组装系统提示词（`buildSystemPrompt`），拼上最近 20 条历史（过滤 `[错误]` 开头的消息）。资料段只列已填项，并附“不是记忆、没填不要猜、对话中改了就以最新说法为准”的规则。
 3. 演示模式或未配置 Key：本地 `demoReply` 逐字符块推送；否则 `streamDeepSeek` 转发 DeepSeek 流。
 4. 事件 `chunk` / `done` / `error` 逐条推给 UI；`POST /api/cancel` 通过 `AbortController` 中止；客户端断开也会中止。
+5. 对话中修改资料只影响本会话（提示词每轮重建）；持久化要回设置页保存——P0.5 没有工具调用，模型无法写设置。
 
 ## A6. 人设调试（patch）流程
 
@@ -98,13 +100,13 @@ out/                       构建产物（git 忽略）
 
 - 只监听 `127.0.0.1`；未做鉴权，**不要用反向代理 / 端口转发暴露到局域网或公网**。
 - 静态文件托管有路径穿越校验；请求体上限 5 MB。
-- API Key 不落盘；`config/` 在 `.gitignore` 中。
+- API Key 不落盘（`.env` 除外，已 gitignore）；`config/` 在 `.gitignore` 中。
 - 前端 CSP 在 `src/renderer/index.html`，仅允许同源和 `localhost` 连接。
 - 完整的安全设计（路径守卫、prompt injection、工具确认）属规划，见 [SECURITY](SECURITY.md)。
 
 ## A8. 验证方式
 
-当前没有自动化测试。改动后至少执行：`npm run typecheck`、`npm run build`，再 `npm start` 在演示模式下走一遍聊天和调试流程。
+当前没有自动化测试。改动后至少执行：`npm run typecheck`、`npm run build`，再 `npm start` 在演示模式下走一遍聊天、设置（含用户资料）和调试 patch 流程。改动服务端逻辑时，可用临时工作目录 + `PORT=4199 NO_OPEN=1 npm start` 起第二个实例做往返验证，不要动正在用的 `config/`。
 
 ---
 
