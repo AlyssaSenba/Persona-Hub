@@ -127,6 +127,12 @@ export function createWebLab(): LabApi {
         body: JSON.stringify(input),
       }),
 
+    activatePatch: (input: DebugRevertInput) =>
+      request<{ settings: PublicSettings; patches: PersonaPatch[] }>('/api/debug/activate', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
     listPatches: () => request<PersonaPatch[]>('/api/debug/patches'),
   };
 }

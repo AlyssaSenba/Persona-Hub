@@ -332,7 +332,19 @@ export default function App() {
       const result = await window.lab.revertPatch({ patchId });
       setPatches(result.patches);
       setSettings(result.settings);
-      setNotice('已回滚这个 patch。');
+      setNotice('已停用这个 patch，文件还在，可以重新启用。');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }
+
+  async function activatePatch(patchId: string): Promise<void> {
+    setError('');
+    try {
+      const result = await window.lab.activatePatch({ patchId });
+      setPatches(result.patches);
+      setSettings(result.settings);
+      setNotice('已重新启用，下一轮生效。');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     }
@@ -511,6 +523,7 @@ export default function App() {
           onSave={() => void saveSettings()}
           onClearKey={() => void clearKey()}
           onRevert={(patchId) => void revertPatch(patchId)}
+          onActivate={(patchId) => void activatePatch(patchId)}
           onClose={() => setSettingsOpen(false)}
         />
       ) : null}

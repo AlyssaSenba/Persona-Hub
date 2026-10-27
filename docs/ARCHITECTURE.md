@@ -75,7 +75,7 @@ out/                       构建产物（git 忽略）
 
 - 设置：`config/web-settings.json`（称呼、关系、安全词、演示模式、已启用 patch id、**用户资料**：`userGender` / `nationality` / `userNotes`）。**不含 API Key。**
 - 用户资料：`userGender` 为 `unspecified | male | female | none`（`none` = 无性别），`nationality` 截断 40 字，`userNotes` 截断 500 字；旧设置文件缺字段时由 `loadSettings` 补默认值，读 JSON 时会去掉 BOM（否则整份设置会静默回落到默认值）。
-- patch：`config/persona-patches/<uuid>.json`，一个 patch 一个文件；回滚 = 从 `activePatchIds` 移除，文件保留。
+- patch：`config/persona-patches/<uuid>.json`，一个 patch 一个文件；停用 = 从 `activePatchIds` 移除，文件保留；重新启用 = 把 id 加回（`POST /api/debug/activate`）。
 - **API Key 不进 `config/`**：优先从根目录 `.env` 每次请求实时读取；设置页临时填的只保存在 Node 进程内存、不落盘、不写日志。渲染层只得到 `hasApiKey` 与 `keySource`。
 - 路径基准是启动时的工作目录（`process.cwd()`），请在项目根目录运行。
 
@@ -93,7 +93,8 @@ out/                       构建产物（git 忽略）
 - 提案：`POST /api/debug/propose`，模型在 JSON 模式下输出 `{title, summary, rules[≤6], examples[≤4]}`，服务端清洗并校验，没有规则则报错。
 - 预览：`POST /api/debug/preview`，对至多 4 条样例分别用“当前”和“当前 + 新 patch”各生成一次，返回前后对比；不写盘。
 - 应用：`POST /api/debug/apply` 写 patch 文件并加入 `activePatchIds`，下一轮聊天生效。
-- 回滚：`POST /api/debug/revert` 从 `activePatchIds` 移除。
+- 回滚：`POST /api/debug/revert` 从 `activePatchIds` 移除，文件保留。
+- 重新启用：`POST /api/debug/activate` 把 id 加回；设置页列出已停用的 patch，可一键恢复，避免“回滚即永久丢失”。
 - 提案提示词（`server/persona.ts`）要求 patch 只调语气、称呼、情绪、主动性等，不得改安全 / 内容 / 危机 / 能力边界；这是提示词层面的约束，服务端没有字段白名单校验。
 
 ## A7. 安全现状

@@ -109,5 +109,9 @@ export interface LabApi {
     settings: PublicSettings;
     patches: PersonaPatch[];
   }>;
+  activatePatch(input: DebugRevertInput): Promise<{
+    settings: PublicSettings;
+    patches: PersonaPatch[];
+  }>;
   listPatches(): Promise<PersonaPatch[]>;
 }

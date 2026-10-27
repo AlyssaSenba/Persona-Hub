@@ -180,17 +180,18 @@ export function DebugModal(props: Props) {
                       className="ghost small"
                       onClick={() => props.onRevert(patch.id)}
                     >
-                      回滚
+                      停用
                     </button>
                   </div>
                 ))}
               </div>
             )}
+            <p className="hint">停用的 patch 不会删文件，可在设置里重新启用。</p>
           </section>
         </div>
 
         <footer className="modal-foot">
-          <p className="hint">应用后下一轮生效；回滚可撤销。不能关闭安全/内容/危机边界。</p>
+          <p className="hint">应用后下一轮生效；停用可撤销。不能关闭安全/内容/危机边界。</p>
           <button type="button" className="ghost" onClick={props.onClose}>
             回到对话
           </button>

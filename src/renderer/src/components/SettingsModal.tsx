@@ -12,12 +12,14 @@ interface Props {
   onSave: () => void;
   onClearKey: () => void;
   onRevert: (patchId: string) => void;
+  onActivate: (patchId: string) => void;
   onClose: () => void;
 }
 
 export function SettingsModal(props: Props) {
   const { settings, form, apiKeyInput, saving, personaPath, patches } = props;
   const activePatches = patches.filter((patch) => patch.active);
+  const inactivePatches = patches.filter((patch) => !patch.active);
 
   return (
     <div className="modal-backdrop">
@@ -222,9 +224,9 @@ export function SettingsModal(props: Props) {
           </section>
 
           <section className="form-section">
-            <h3>生效中的 patch</h3>
+            <h3>persona patch</h3>
             {activePatches.length === 0 ? (
-              <p className="hint">还没有。打开调试，输入“别老反问”试试。</p>
+              <p className="hint">没有生效中的 patch。打开调试，输入“别老反问”试试。</p>
             ) : (
               <div className="patch-list">
                 {activePatches.map((patch) => (
@@ -238,12 +240,34 @@ export function SettingsModal(props: Props) {
                       className="ghost small"
                       onClick={() => props.onRevert(patch.id)}
                     >
-                      回滚
+                      停用
                     </button>
                   </div>
                 ))}
               </div>
             )}
+            {inactivePatches.length > 0 ? (
+              <>
+                <p className="hint">已停用（文件还在，可重新启用）：</p>
+                <div className="patch-list">
+                  {inactivePatches.map((patch) => (
+                    <div className="patch-row" key={patch.id}>
+                      <div>
+                        <strong>{patch.title}</strong>
+                        <p>{patch.rules.length} 条规则 · 已停用</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost small"
+                        onClick={() => props.onActivate(patch.id)}
+                      >
+                        重新启用
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
           </section>
 
           <section className="form-section">

@@ -28,6 +28,7 @@
 | POST | `/api/debug/preview` | `previewPatch` | `DebugPreviewInput` | `PreviewResult` |
 | POST | `/api/debug/apply` | `applyPatch` | `DebugApplyInput` | `{ patch, settings, patches }` |
 | POST | `/api/debug/revert` | `revertPatch` | `DebugRevertInput` | `{ settings, patches }` |
+| POST | `/api/debug/activate` | `activatePatch` | `DebugRevertInput` | `{ settings, patches }` |
 
 其余路径返回前端静态文件（`out/renderer`，找不到的路径回退到 `index.html`）。
 
@@ -89,6 +90,7 @@ interface PersonaPatch extends PersonaPatchProposal {
 - `preview`：`samples` 至多取 4 条；每条各生成“当前”和“套用提案后”两份回复；不写盘。
 - `apply`：写 `config/persona-patches/<uuid>.json`（`rules` 至多 12 条、`examples` 至多 6 条），并加入 `activePatchIds`。
 - `revert`：仅从 `activePatchIds` 移除，patch 文件保留。
+- `activate`：把已停用 patch 的 id 加回 `activePatchIds`；文件不存在则忽略，不报错。与 `revert` 对称，用于“停用后反悔”。
 - 设置文件 `config/web-settings.json` 不含 API Key。
 
 ## A6. 用户资料字段

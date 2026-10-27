@@ -218,6 +218,15 @@ function deactivatePatch(patchId: string): LabSettings {
   return settings;
 }
 
+function activatePatch(patchId: string): LabSettings {
+  const settings = loadSettings();
+  if (fs.existsSync(patchFile(patchId)) && !settings.activePatchIds.includes(patchId)) {
+    settings.activePatchIds.push(patchId);
+    writeJson(SETTINGS_FILE, settings);
+  }
+  return settings;
+}
+
 function demoReply(text: string): string {
   if (/累|疲惫|困|加班/.test(text)) return '嗯，辛苦了。先歇着，不用急着回我。';
   if (/哄|抱|安慰/.test(text)) return '好啊。想听正经的，还是想听我瞎说？';
@@ -583,6 +592,15 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     deactivatePatch(input.patchId);
     json(res, 200, {
       settings: publicSettings(loadSettings()),
+      patches: listPatches(),
+    });
+    return;
+  }
+  if (method === 'POST' && p === '/api/debug/activate') {
+    const input = (await readBody(req)) as DebugRevertInput;
+    const settings = activatePatch(input.patchId);
+    json(res, 200, {
+      settings: publicSettings(settings),
       patches: listPatches(),
     });
     return;
