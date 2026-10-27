@@ -11,7 +11,6 @@ interface Props {
   onApiKeyChange: (value: string) => void;
   onSave: () => void;
   onClearKey: () => void;
-  onOpenConfig: () => void;
   onRevert: (patchId: string) => void;
   onClose: () => void;
 }
@@ -201,9 +200,7 @@ export function SettingsModal(props: Props) {
         </div>
 
         <footer className="modal-foot">
-          <button type="button" className="ghost" onClick={props.onOpenConfig}>
-            打开配置目录
-          </button>
+          <span className="hint">配置保存在项目的 config/ 目录。</span>
           <div className="modal-foot-right">
             <button type="button" className="ghost" onClick={props.onClose}>
               取消

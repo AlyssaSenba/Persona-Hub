@@ -128,9 +128,5 @@ export function createWebLab(): LabApi {
       }),
 
     listPatches: () => request<PersonaPatch[]>('/api/debug/patches'),
-
-    openConfig: async () => {
-      window.alert('浏览器版无法打开文件夹；配置文件在项目的 config/ 目录。');
-    },
   };
 }

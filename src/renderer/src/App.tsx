@@ -507,7 +507,6 @@ export default function App() {
           onApiKeyChange={setApiKeyInput}
           onSave={() => void saveSettings()}
           onClearKey={() => void clearKey()}
-          onOpenConfig={() => void window.lab.openConfig()}
           onRevert={(patchId) => void revertPatch(patchId)}
           onClose={() => setSettingsOpen(false)}
         />

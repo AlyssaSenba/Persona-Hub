@@ -1,7 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { exec } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import type {
   ChatMessage,
@@ -19,9 +19,9 @@ import {
   buildPatchProposalPrompt,
   buildPreviewSystemPrompt,
   buildSystemPrompt,
-} from '../src/main/persona.ts';
+} from './persona.ts';
 
-const PORT = 4173;
+const PORT = Number(process.env.PORT) || 4173;
 const ROOT = process.cwd();
 const CONFIG_DIR = path.join(ROOT, 'config');
 const PATCH_DIR = path.join(CONFIG_DIR, 'persona-patches');
@@ -354,7 +354,7 @@ function serveStatic(res: http.ServerResponse, pathname: string): void {
   }
   if (!fs.existsSync(file)) {
     res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('还没有构建前端。请先运行 npm.cmd run build。');
+    res.end('还没有构建前端。请先运行 npm run build。');
     return;
   }
   res.writeHead(200, { 'Content-Type': mimeType(file), 'Cache-Control': 'no-store' });
@@ -531,6 +531,18 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   json(res, 404, { error: 'Not found' });
 }
 
+function openBrowser(url: string): void {
+  const [command, args]: [string, string[]] =
+    process.platform === 'win32'
+      ? ['cmd', ['/c', 'start', '""', url]]
+      : process.platform === 'darwin'
+        ? ['open', [url]]
+        : ['xdg-open', [url]];
+  const child = spawn(command, args, { stdio: 'ignore', detached: true });
+  child.on('error', () => console.log(`没能自动打开浏览器，请手动访问 ${url}`));
+  child.unref();
+}
+
 const server = http.createServer((req, res) => {
   void (async () => {
     try {
@@ -550,6 +562,6 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Persona Lab (web) is running at http://127.0.0.1:${PORT}`);
   if (process.env.NO_OPEN !== '1') {
-    exec(`start "" "http://127.0.0.1:${PORT}"`);
+    openBrowser(`http://127.0.0.1:${PORT}`);
   }
 });

@@ -103,5 +103,4 @@ export interface LabApi {
     patches: PersonaPatch[];
   }>;
   listPatches(): Promise<PersonaPatch[]>;
-  openConfig(): Promise<void>;
 }

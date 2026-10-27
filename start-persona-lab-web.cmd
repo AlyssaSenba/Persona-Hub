@@ -8,12 +8,12 @@ if not exist "node_modules" (
 )
 
 echo Building web UI...
-call npm.cmd run build:web
+call npm.cmd run build
 if errorlevel 1 goto :error
 
 echo Starting Persona Lab (web)...
 echo Keep this window open while you use it.
-node --experimental-strip-types --no-warnings server\index.mts
+call npm.cmd start
 if errorlevel 1 goto :error
 goto :eof
 

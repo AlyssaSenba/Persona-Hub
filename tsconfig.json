@@ -22,7 +22,6 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "server/**/*.mts",
-    "electron.vite.config.ts"
+    "server/**/*.mts"
   ]
 }
